@@ -104,3 +104,38 @@ let f e =
   toplevel := [];
   let e' = g M.empty S.empty e in
   Prog(List.rev !toplevel, e')
+
+let rec show_closure_t (syn : t) : string = 
+  match syn with
+    | Unit -> "()"
+    | Int x  -> string_of_int x
+    | Float x -> string_of_float x
+    | Neg x -> "neg(" ^ x ^ ")"
+    | Add (x, y) -> "+(" ^ x ^ ", " ^ y ^ ")"
+    | Sub (x, y) -> "-(" ^ x ^ ", " ^ y ^ ")"
+    | FNeg x -> "fneg(" ^ x ^ ")"
+    | FAdd (x, y) -> "+.(" ^ x ^ ", " ^ y ^ ")"
+    | FSub (x, y) -> "-.(" ^ x ^ ", " ^ y ^ ")"
+    | FMul (x, y) -> "*.(" ^ x ^ ", " ^ y ^ ")"
+    | FDiv (x, y) -> "/.(" ^ x ^ ", " ^ y ^ ")"
+    | IfEq (a, b, x, y) -> "if=(" ^ a ^ "," ^ b ^ "," ^ show_closure_t x ^ ", " ^ show_closure_t y ^ ")"
+    | IfLE (a, b, x, y) -> "if<=(" ^ a ^ "," ^ b ^ "," ^ show_closure_t x ^ ", " ^ show_closure_t y ^ ")"
+    | Let ((name, ty), y, z) -> "let(" ^ name ^ " := " ^ show_closure_t y ^ " in " ^ show_closure_t z ^ ")"
+    | Var x -> "var(" ^ x ^ ")"
+    | MakeCls ((id, ty), clos, t) -> "make_cls(" ^ id ^ ":" ^ Type.show_type_t ty ^ ", " ^ show_closure clos ^ ", " ^ show_closure_t t ^ ")"
+    | AppCls (x, ls) -> "app_cls(" ^ x ^ List.fold_left (fun x y -> x ^ "," ^ y) "" ls ^ ")"
+    | AppDir (Id.L x, ls) -> "app_dir(" ^ x ^ List.fold_left (fun x y -> x ^ "," ^ y) "" ls ^ ")"
+    | Tuple ls -> "tuple(" ^ List.fold_left (fun x y -> x ^ y ^ ", ") "" ls ^ ")"
+    | LetTuple (ls, a, b) -> "let_tuple(...)"
+    | Get (x, y) -> "get(" ^ x ^ ", " ^ y ^ ")"
+    | Put (x, y, z) -> "put(" ^ x ^ ", " ^ y ^ "," ^ z ^ ")"
+    | ExtArray (Id.L x) -> "ext_array(" ^ x ^ ")"
+and show_fundef f = match f with
+  | { name = (Id.L id, ty); args = ls; body = body } -> "fundef(" ^ id ^ "," ^ Type.show_type_t ty ^ "" ^ "," ^ show_closure_t body ^ ")"
+and show_closure clos : string = match clos with
+  | { entry = Id.L id; actual_fv = ls } -> "clos(entry = " ^ id ^ List.fold_left (fun x y -> x ^ ", " ^ y) "" ls ^ ")"
+
+
+let show_prog prog : string = match prog with
+  | Prog (fundefs, exp) -> List.fold_left (fun x y -> x ^ show_fundef y ^ "\n") "" fundefs ^ show_closure_t exp
+

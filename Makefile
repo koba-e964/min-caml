@@ -35,8 +35,8 @@ inprod inprod-rec inprod-loop matmul matmul-flat
 
 do_test: $(TESTS:%=test/%.cmp)
 
-.PRECIOUS: test/%.s test/% test/%.res test/%.ans test/%.cmp
-TRASH = $(TESTS:%=test/%.s) $(TESTS:%=test/%) $(TESTS:%=test/%.res) $(TESTS:%=test/%.ans) $(TESTS:%=test/%.cmp)
+.PRECIOUS: test/%.s test/%.x test/%.res test/%.ans test/%.cmp
+TRASH = $(TESTS:%=test/%.s) $(TESTS:%=test/%.x) $(TESTS:%=test/%.res) $(TESTS:%=test/%.ans) $(TESTS:%=test/%.cmp)
 
 test/%.s: $(RESULT) test/%.ml
 	./$(RESULT) test/$*
