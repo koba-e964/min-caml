@@ -40,9 +40,9 @@ TRASH = $(TESTS:%=test/%.s) $(TESTS:%=test/%) $(TESTS:%=test/%.res) $(TESTS:%=te
 
 test/%.s: $(RESULT) test/%.ml
 	./$(RESULT) test/$*
-test/%: test/%.s libmincaml.S stub.c
+test/%.x: test/%.s libmincaml.S stub.c
 	$(CC) $(CFLAGS) -m32 $^ -lm -o $@
-test/%.res: test/%
+test/%.res: test/%.x
 	$< > $@
 test/%.ans: test/%.ml
 	ocaml $< > $@
