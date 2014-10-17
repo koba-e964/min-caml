@@ -86,3 +86,43 @@ let rec concat e1 xt e2 =
   | Let(yt, exp, e1') -> Let(yt, exp, concat e1' xt e2)
 
 let align i = (if i mod 8 = 0 then i else i + 4)
+
+let rec show_asm_t (syn : t) : string = match syn with
+  | Ans x -> show_exp x
+  | Let ((id,ty), x, t) -> "let " ^ id ^ " : " ^ Type.show_type_t ty ^ " := " ^ show_exp x ^ " in\n" ^ show_asm_t t
+and show_ii = function
+  | V name -> name
+  | C i    -> string_of_int i
+and show_exp x = match x with
+  | Nop -> "nop"
+  | Set i -> "set " ^ string_of_int i
+  | SetL (Id.L i) -> "set_l " ^ i
+  | Mov id -> "mov " ^ id
+  | Neg id -> "neg " ^ id
+  | Add (id, v) -> "add " ^ id ^ ", " ^ show_ii v
+  | Sub (id, v) -> "sub " ^ id ^ ", " ^ show_ii v
+  | Ld (id, v, k) -> "ld " ^ id ^ ", " ^ show_ii v ^ "," ^ string_of_int k
+  | St (id1, id2, v, k) -> "st " ^ id1 ^ ", " ^ id2 ^ ", " ^ show_ii v ^ "," ^ string_of_int k
+  | FMovD id -> "flop"
+  | FNegD id -> "flop"
+  | FAddD (id1,id2) -> "flop"
+  | FSubD (id1,id2) -> "flop"
+  | FMulD (id1,id2) -> "flop"
+  | FDivD (id1,id2) -> "flop"
+  | LdDF (id1,v,k) -> "flop"
+  | StDF (id1,id2,v,k) -> "flop"
+  | Comment str -> "comment " ^ str
+  | IfEq (id, v, x, y) -> "if" ^ id ^ " = " ^ show_ii v ^ "\nthen " ^ show_asm_t x ^ "\nelse " ^ show_asm_t y
+  | IfLE (id, v, x, y) -> "if" ^ id ^ " <= " ^ show_ii v ^ "\nthen " ^ show_asm_t x ^ "\nelse " ^ show_asm_t y
+  | IfGE (id, v, x, y) -> "if" ^ id ^ " >= " ^ show_ii v ^ "\nthen " ^ show_asm_t x ^ "\nelse " ^ show_asm_t y
+  | IfFEq (id1,id2,x,y) -> "if" ^ id1 ^ " .= " ^ id2 ^ "\nthen " ^ show_asm_t x ^ "\nelse " ^ show_asm_t y
+  | IfFLE (id1,id2,x,y) -> "if" ^ id1 ^ " .<= " ^ id2 ^ "\nthen " ^ show_asm_t x ^ "\nelse " ^ show_asm_t y
+  | CallCls (idl, ls1, ls2) -> "call_cls " ^ idl ^ List.fold_left (fun x y -> x ^ "," ^ y) "" (ls1 @ ls2)
+  | CallDir (Id.L idl, ls1, ls2) -> "call_dir " ^ idl ^ List.fold_left (fun x y -> x ^ "," ^ y) "" (ls1 @ ls2)
+  | Save (id1, id2) -> "save " ^ id1 ^ ", " ^ id2
+  | Restore id -> "restore " ^ id
+and show_fundef f = match f with
+  | { name = Id.L id; args = ls; fargs; body; ret } -> "fundef(" ^ id ^ "" ^ "," ^ show_asm_t body ^  ":" ^ Type.show_type_t ret ^ ")"
+let show_prog (Prog (ls, fundefs, t)) = 
+  List.fold_left (fun x y -> x ^ show_fundef y ^ "\n") "" fundefs ^ show_asm_t t
+

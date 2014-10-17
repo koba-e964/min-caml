@@ -19,8 +19,10 @@ let lexbuf outchan l = (* バッファをコンパイルしてチャンネルへ出力する (caml2htm
   let rr = (Closure.f (iter !limit (Alpha.f normalized))) in
   print_endline "**** closure-trans ****";
   print_endline (Closure.show_prog rr);
-  let bitcode = Virtual.f rr in
-  Emit.f outchan (RegAlloc.f (Simm.f bitcode))
+  let virtual_code = Virtual.f rr in
+  print_endline "**** virtual ****";
+  print_endline (Asm.show_prog virtual_code);
+  Emit.f outchan (RegAlloc.f (Simm.f virtual_code))
 let string s = lexbuf stdout (Lexing.from_string s) (* 文字列をコンパイルして標準出力に表示する (caml2html: main_string) *)
 
 let file f = (* ファイルをコンパイルしてファイルに出力する (caml2html: main_file) *)

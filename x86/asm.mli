@@ -56,3 +56,8 @@ val fv : t -> Id.t list
 val concat : t -> Id.t * Type.t -> t -> t
 
 val align : int -> int
+
+val show_asm_t : t -> string
+val show_prog : prog -> string
+
+
