@@ -177,3 +177,32 @@ let rec g env = function (* K正規化ルーチン本体 (caml2html: knormal_g) *)
 		(fun z -> Put(x, y, z), Type.Unit)))
 
 let f e = fst (g M.empty e)
+
+let rec show_knormal_t (syn : t) : string = 
+  match syn with
+    | Unit -> "()"
+    | Int x  -> string_of_int x
+    | Float x -> string_of_float x
+    | Neg x -> "neg(" ^ x ^ ")"
+    | Add (x, y) -> "+(" ^ x ^ ", " ^ y ^ ")"
+    | Sub (x, y) -> "-(" ^ x ^ ", " ^ y ^ ")"
+    | FNeg x -> "fneg(" ^ x ^ ")"
+    | FAdd (x, y) -> "+.(" ^ x ^ ", " ^ y ^ ")"
+    | FSub (x, y) -> "-.(" ^ x ^ ", " ^ y ^ ")"
+    | FMul (x, y) -> "*.(" ^ x ^ ", " ^ y ^ ")"
+    | FDiv (x, y) -> "/.(" ^ x ^ ", " ^ y ^ ")"
+    | IfEq (a, b, x, y) -> "if=(" ^ a ^ "," ^ b ^ "," ^ show_knormal_t x ^ ", " ^ show_knormal_t y ^ ")"
+    | IfLE (a, b, x, y) -> "if<=(" ^ a ^ "," ^ b ^ "," ^ show_knormal_t x ^ ", " ^ show_knormal_t y ^ ")"
+    | Let ((name, ty), y, z) -> "let(" ^ name ^ " := " ^ show_knormal_t y ^ " in " ^ show_knormal_t z ^ ")"
+    | Var x -> "var(" ^ x ^ ")"
+    | LetRec (x,y) -> "letrec(" ^ show_fundef x ^ ", " ^ show_knormal_t y ^ ")"
+    | App (x, ls) -> "app(" ^ x ^ List.fold_left (fun x y -> x ^ "," ^ y) "" ls ^ ")"
+    | Tuple ls -> "tuple(" ^ List.fold_left (fun x y -> x ^ y ^ ", ") "" ls ^ ")"
+    | LetTuple (ls, a, b) -> "let_tuple(...)"
+    | Get (x, y) -> "get(" ^ x ^ ", " ^ y ^ ")"
+    | Put (x, y, z) -> "put(" ^ x ^ ", " ^ y ^ "," ^ z ^ ")"
+    | ExtArray x -> "ext_array(" ^ x ^ ")"
+    | ExtFunApp (x, ls) -> "ext_fun_app(" ^ x ^ List.fold_left (fun x y -> x ^ "," ^ y) "" ls ^ ")"
+and show_fundef f = match f with
+  | { name = (id, ty); args = ls; body = body } -> "fundef(" ^ id ^ "," ^ Type.show_type_t ty ^ "" ^ "," ^ show_knormal_t body ^ ")"
+
