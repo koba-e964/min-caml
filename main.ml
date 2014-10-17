@@ -22,7 +22,13 @@ let lexbuf outchan l = (* バッファをコンパイルしてチャンネルへ出力する (caml2htm
   let virtual_code = Virtual.f rr in
   print_endline "**** virtual ****";
   print_endline (Asm.show_prog virtual_code);
-  Emit.f outchan (RegAlloc.f (Simm.f virtual_code))
+  let simm = Simm.f virtual_code in
+  print_endline "**** simm ****";
+  print_endline (Asm.show_prog simm);
+  let reg = RegAlloc.f simm in
+  print_endline "**** reg-alloc ****";
+  print_endline (Asm.show_prog reg);
+  Emit.f outchan reg
 let string s = lexbuf stdout (Lexing.from_string s) (* 文字列をコンパイルして標準出力に表示する (caml2html: main_string) *)
 
 let file f = (* ファイルをコンパイルしてファイルに出力する (caml2html: main_file) *)
