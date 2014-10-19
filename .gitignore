@@ -15,7 +15,6 @@ _build/
 lexer.ml
 parser.ml
 parser.mli
-libmincaml.S
 test/*.s
 test/*.x
 min-rt/*.s
@@ -25,5 +24,6 @@ min-rt/*.s
 /regAlloc.ml
 /simm.ml
 /virtual.ml
+/libmincaml.S
 libmincaml_stubs.clib
 
