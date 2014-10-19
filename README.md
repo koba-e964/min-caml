@@ -17,7 +17,8 @@ A min-caml compiler whose target is [Zebius](https://github.com/ProcessorCompile
 ```
 git clone https://github.com/koba-e964/min-caml/ min-caml-koba
 cd min-caml-koba
-./to_zebius; make
+./to_zebius; make min-caml
+./min-caml test/fib
 ```
 ## Requirement
 * ocaml
