@@ -7,7 +7,7 @@ esac
 echo "yes" | sudo add-apt-repository ppa:$ppa
 sudo apt-get update -qq
 sudo apt-get install ocaml
-arch/to_zebius
+./to_zebius
 make min-caml
 # Currently, no tests are available.
 # make test
