@@ -54,13 +54,26 @@ let store_disp oc n src dest =
   Printf.fprintf oc "\tMOV.L\t%s, @%s\n" src dest;
   Printf.fprintf oc "\tADD\t#%d, %s\n" (-n) dest
 
+let nop oc = 
+  Printf.fprintf oc "\tAND\tR0, R0\n"
+
 let call oc sr =
-  Printf.fprintf oc "\t.ALIGN\n";  
-  Printf.fprintf oc "\tMOV.L\t@(PC+8), R14\n";  
+  let uniq_label = Id.genid ".call_addr" in
+  let endpoint = Id.genid ".call_endp" in
+  Printf.fprintf oc "\tMOV.L\t%s, R14\n" uniq_label;
   Printf.fprintf oc "\tJSR\t@R14\n";
-  Printf.fprintf oc "\tBRA\t2\n";
-  Printf.fprintf oc "\tAND\tR0, R0\t;; NOP\n";
-  Printf.fprintf oc "\t.DD\t%s\n" sr
+  nop oc;
+  Printf.fprintf oc "\tBRA\t%s\n" endpoint;
+  nop oc;
+  Printf.fprintf oc "\t.align\n";
+  Printf.fprintf oc "%s\n" uniq_label;
+  Printf.fprintf oc "\t.data.l\t%s\n" sr;
+  Printf.fprintf oc "%s\n" endpoint
+let rts oc = 
+  Printf.fprintf oc "\tADD\t#-4, R15\n";
+  Printf.fprintf oc "\tMOV.L\t@R15, R14\n";
+  Printf.fprintf oc "\tJMP\t@R14\n";
+  nop oc
 let cmp_imm oc asmstr imm r =
   Printf.fprintf oc "\tMOV\t#%d, R14\n" imm;
   Printf.fprintf oc "\t%s\tR14, %s\n" asmstr r
@@ -74,6 +87,10 @@ let cmp_eq_id_or_imm oc ii r = match ii with
 let cmp_le_id_or_imm oc ii r = match ii with
   | V reg -> Printf.fprintf oc "\tCMP/GT\t%s, %s\n" reg r
   | C imm -> cmp_imm oc "CMP/GT" imm r
+
+let sub_id_or_imm oc ii r = match ii with
+  | V reg -> Printf.fprintf oc "\tSUB\t%s, %s\n" reg r
+  | C imm -> Printf.fprintf oc "\tADD\t#%d, %s\n" (-imm) r
 
 type dest = Tail | NonTail of Id.t (* 末尾かどうかを表すデータ型 (caml2html: emit_dest) *)
 let rec g oc = function (* 命令列のアセンブリ生成 (caml2html: emit_g) *)
@@ -99,7 +116,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
 	 Printf.fprintf oc "\tADD\t%s, %s\n" (pp_id_or_imm z') x)
   | NonTail(x), Sub(y, z') ->
 	(if x <> y then Printf.fprintf oc "\tMOV\t%s, %s\n" y x;
-	 Printf.fprintf oc "\tSUB\t%s, %s\n" (pp_id_or_imm z') x)
+	 sub_id_or_imm oc z' x)
   | NonTail(x), Ld(y, V(z), i) -> Printf.fprintf oc "\tMOV\t(%s,%s,%d), %s\n" y z i x
   | NonTail(x), Ld(y, C(j), i) -> load_disp oc (j * i) y x
   | NonTail(_), St(x, y, V(z), i) -> Printf.fprintf oc "\tMOV\t%s, (%s,%s,%d)\n" x y z i
@@ -161,28 +178,28 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   (* 末尾だったら計算結果を第一レジスタにセットしてret (caml2html: emit_tailret) *)
   | Tail, (Nop | St _ | StDF _ | Comment _ | Save _ as exp) ->
       g' oc (NonTail(Id.gentmp Type.Unit), exp);
-      Printf.fprintf oc "\tRTL\n";
+      rts oc
   | Tail, (Set _ | SetL _ | Mov _ | Neg _ | Add _ | Sub _ | Ld _ as exp) ->
       g' oc (NonTail(regs.(0)), exp);
-      Printf.fprintf oc "\tRTL\n";
+      rts oc
   | Tail, (FMovD _ | FNegD _ | FAddD _ | FSubD _ | FMulD _ | FDivD _ | LdDF _  as exp) ->
       g' oc (NonTail(fregs.(0)), exp);
-      Printf.fprintf oc "\tRTL\n";
+      rts oc
   | Tail, (Restore(x) as exp) ->
       (match locate x with
       | [i] -> g' oc (NonTail(regs.(0)), exp)
       | [i; j] when i + 1 = j -> g' oc (NonTail(fregs.(0)), exp)
       | _ -> assert false);
-      Printf.fprintf oc "\tRTL\n";
+      rts oc
   | Tail, IfEq(x, y', e1, e2) ->
       cmp_id_or_imm oc y' x;
-      g'_tail_if oc e1 e2 "JE" "BT"
+      g'_tail_if oc e1 e2 ".JE" "BT"
   | Tail, IfLE(x, y', e1, e2) ->
       cmp_le_id_or_imm oc y' x;
-      g'_tail_if oc e1 e2 "JLE" "BT"
+      g'_tail_if oc e1 e2 ".JLE" "BT"
   | Tail, IfGE(x, y', e1, e2) ->
       cmp_id_or_imm oc y' x;
-      g'_tail_if oc e1 e2 "JGE" "BF"
+      g'_tail_if oc e1 e2 ".JGE" "BF"
   | Tail, IfFEq(x, y, e1, e2) ->
       Printf.fprintf oc "\tcomisd\t%s, %s\n" y x;
       g'_tail_if oc e1 e2 "je" "jne"
@@ -191,13 +208,13 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       g'_tail_if oc e1 e2 "jbe" "ja"
   | NonTail(z), IfEq(x, y', e1, e2) ->
       cmp_id_or_imm oc y' x;
-      g'_non_tail_if oc (NonTail(z)) e1 e2 "je" "BT"
+      g'_non_tail_if oc (NonTail(z)) e1 e2 ".je" "BT"
   | NonTail(z), IfLE(x, y', e1, e2) ->
       cmp_le_id_or_imm oc y' x;
-      g'_non_tail_if oc (NonTail(z)) e1 e2 "jle" "BT"
+      g'_non_tail_if oc (NonTail(z)) e1 e2 ".jle" "BT"
   | NonTail(z), IfGE(x, y', e1, e2) ->
       cmp_id_or_imm oc y' x;
-      g'_non_tail_if oc (NonTail(z)) e1 e2 "jge" "BF"
+      g'_non_tail_if oc (NonTail(z)) e1 e2 ".jge" "BF"
   | NonTail(z), IfFEq(x, y, e1, e2) ->
       Printf.fprintf oc "\tcomisd\t%s, %s\n" y x;
       g'_non_tail_if oc (NonTail(z)) e1 e2 "je" "jne"
@@ -236,7 +253,7 @@ and g'_tail_if oc e1 e2 b bn =
   Printf.fprintf oc "\t%s\t%s\n" bn b_else;
   let stackset_back = !stackset in
   g oc (Tail, e1);
-  Printf.fprintf oc "%s:\n" b_else;
+  Printf.fprintf oc "%s\n" b_else;
   stackset := stackset_back;
   g oc (Tail, e2)
 and g'_non_tail_if oc dest e1 e2 b bn =
@@ -247,10 +264,10 @@ and g'_non_tail_if oc dest e1 e2 b bn =
   g oc (dest, e1);
   let stackset1 = !stackset in
   Printf.fprintf oc "\tjmp\t%s\n" b_cont;
-  Printf.fprintf oc "%s:\n" b_else;
+  Printf.fprintf oc "%s\n" b_else;
   stackset := stackset_back;
   g oc (dest, e2);
-  Printf.fprintf oc "%s:\n" b_cont;
+  Printf.fprintf oc "%s\n" b_cont;
   let stackset2 = !stackset in
   stackset := S.inter stackset1 stackset2
 and g'_args oc x_reg_cl ys zs =
@@ -275,17 +292,27 @@ and g'_args oc x_reg_cl ys zs =
     (shuffle sw zfrs)
 
 let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
-  Printf.fprintf oc "%s:\n" x;
+  Printf.fprintf oc "%s\n" x;
   stackset := S.empty;
   stackmap := [];
+  Printf.fprintf oc "\tSTS\tPR, R14\n"; 
+  Printf.fprintf oc "\tMOV.L\tR14, @R15\n"; 
+  Printf.fprintf oc "\tADD\t#4, R15\n"; (* room for return address *)
   g oc (Tail, e)
 
 let f oc (Prog(data, fundefs, e)) =
   Format.eprintf "generating assembly...@.";
-  Printf.fprintf oc ".text\n";
+  Printf.fprintf oc "\tMOV #1, R15\n";
+  Printf.fprintf oc "\tMOV #15, R14\n";
+  Printf.fprintf oc "\tSHLD R14, R15\n";
+  g oc (NonTail(regs.(0)), e);
+  Printf.fprintf oc "BRA\t.end\n";
   List.iter (fun fundef -> h oc fundef) fundefs;
   stackset := S.empty;
   stackmap := [];
-  Printf.fprintf oc "main:\n";
-  g oc (NonTail(regs.(0)), e);
+  Printf.fprintf oc "min_caml_print_int\n"; (* dummy print routine. it does nothing. *)
+  Printf.fprintf oc "\tRTS\n"; (* return *)
+  nop oc;
+  Printf.fprintf oc ".end\n";
+  Printf.fprintf oc "\tAND R0, R0\n"
 
