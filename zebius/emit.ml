@@ -1,6 +1,6 @@
 open Asm
 
-(* NOTE: This code assumes that R14,R13,R12 is a temporary register. However, regAlloc.ml still has a chance to allocate R14 for a variable.*)
+(* NOTE: This code assumes that R14,R13,R12 are temporary registers. *)
 
 external gethi : float -> int32 = "gethi"
 external getlo : float -> int32 = "getlo"
@@ -48,13 +48,13 @@ let rec shuffle sw xys =
   | xys, acyc -> acyc @ shuffle sw xys
 
 let load_disp oc n src dest = 
-  Printf.fprintf oc "\tADD\t#%d, %s\n" n src;
+  if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" n src;
   Printf.fprintf oc "\tMOV.L\t@%s, %s\n" src dest;
-  Printf.fprintf oc "\tADD\t#%d, %s\n" (-n) src
+  if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" (-n) src
 let store_disp oc n src dest = 
-  Printf.fprintf oc "\tADD\t#%d, %s\n" n dest;
+  if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" n dest;
   Printf.fprintf oc "\tMOV.L\t%s, @%s\n" src dest;
-  Printf.fprintf oc "\tADD\t#%d, %s\n" (-n) dest
+  if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" (-n) dest
 
 let nop oc = 
   Printf.fprintf oc "\tAND\tR0, R0\n"
