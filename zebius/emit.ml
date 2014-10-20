@@ -1,9 +1,11 @@
 open Asm
 
-(* NOTE: This code assumes that R14 is a temporary register. However, regAlloc.ml still has a chance to allocate R14 for a variable.*)
+(* NOTE: This code assumes that R14,R13,R12 is a temporary register. However, regAlloc.ml still has a chance to allocate R14 for a variable.*)
 
 external gethi : float -> int32 = "gethi"
 external getlo : float -> int32 = "getlo"
+
+let is_reg_g str = str.[0] = 'R'
 
 let stackset = ref S.empty (* すでにSaveされた変数の集合 (caml2html: emit_stackset) *)
 let stackmap = ref [] (* Saveされた変数の、スタックにおける位置 (caml2html: emit_stackmap) *)
@@ -88,10 +90,61 @@ let cmp_le_id_or_imm oc ii r = match ii with
   | V reg -> Printf.fprintf oc "\tCMP/GT\t%s, %s\n" reg r
   | C imm -> cmp_imm oc "CMP/GT" imm r
 
+let mov_label oc (label : string) r = 
+  let uniq= Id.genid ".imm_addr" in
+  let endpoint = Id.genid ".imm_endp" in
+  Printf.fprintf oc "\tMOV.L\t%s, %s\n" uniq r;
+  Printf.fprintf oc "\tBRA\t%s\n" endpoint;
+  nop;
+  Printf.fprintf oc "%s\n" uniq;
+  Printf.fprintf oc "\t.data.l\t%s\n" label;
+  Printf.fprintf oc "%s\n" endpoint
+
 let sub_id_or_imm oc ii r = match ii with
   | V reg -> Printf.fprintf oc "\tSUB\t%s, %s\n" reg r
   | C imm -> Printf.fprintf oc "\tADD\t#%d, %s\n" (-imm) r
+let add_imm oc imm dest =
+  if is_reg_g dest then
+    Printf.fprintf oc "\tADD\t#%d, %s\n" imm dest
+  else begin
+    mov_label oc dest "R14";
+    Printf.fprintf oc "\tMOV.L\t@R14, R13\n";
+    Printf.fprintf oc "\tADD\t#%d, R13\n" imm;
+    Printf.fprintf oc "\tMOV.L\tR13, @R14\n"
+  end
+let add_id oc src dest = 
+  if is_reg_g dest then begin
+    if is_reg_g src then
+      Printf.fprintf oc "\tADD\t%s, %s\n" src dest
+    else begin
+      Printf.fprintf oc "\tMOV.L\t%s, R14" src;
+      Printf.fprintf oc "\tADD\tR14, %s\n" dest
+      end
+    end
+  else
+    if is_reg_g src then begin
+      mov_label oc dest "R14";
+      Printf.fprintf oc "\tMOV.L\t@R14, R13\n";
+      Printf.fprintf oc "\tADD\t%s, R13\n" src;
+      Printf.fprintf oc "\tMOV.L\tR13, @R14\n"
+      end
+    else begin
+      Printf.fprintf oc "\tMOV.L\t%s, R12" src;
+      mov_label oc dest "R14";
+      Printf.fprintf oc "\tMOV.L\t@R14, R13\n";
+      Printf.fprintf oc "\tADD\tR12, R13\n";
+      Printf.fprintf oc "\tMOV.L\tR13, @R14\n"
+    end
+let add_id_or_imm oc ii dest = 
+  match ii with
+    | V reg -> add_id oc reg dest
+    | C imm -> add_imm oc imm dest
 
+let mov_labelref_or_reg oc (lr : string) r =
+  if is_reg_g lr then
+    Printf.fprintf oc "\tMOV\t%s, %s\n" lr r
+  else
+    Printf.fprintf oc "\tMOV.L\t%s, %s\n" lr r
 type dest = Tail | NonTail of Id.t (* 末尾かどうかを表すデータ型 (caml2html: emit_dest) *)
 let rec g oc = function (* 命令列のアセンブリ生成 (caml2html: emit_g) *)
   | dest, Ans(exp) -> g' oc (dest, exp)
@@ -102,25 +155,25 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   (* 末尾でなかったら計算結果をdestにセット (caml2html: emit_nontail) *)
   | NonTail(_), Nop -> ()
   | NonTail(x), Set(i) -> Printf.fprintf oc "\tMOV\t#%d, %s\n" i x
-  | NonTail(x), SetL(Id.L(y)) -> Printf.fprintf oc "\tMOV\t#%s, %s\n" y x
+  | NonTail(x), SetL(Id.L(y)) -> mov_label oc y x
   | NonTail(x), Mov(y) ->
-      if x <> y then Printf.fprintf oc "\tMOV\t%s, %s\n" y x
+      if x <> y then mov_labelref_or_reg oc y x
   | NonTail(x), Neg(y) ->
-      if x <> y then Printf.fprintf oc "\tMOV\t%s, %s\n" y x;
+      if x <> y then mov_labelref_or_reg oc y x;
       Printf.fprintf oc "\tnegl\t%s\n" x
   | NonTail(x), Add(y, z') ->
       if V(x) = z' then
-	Printf.fprintf oc "\tADD\t%s, %s\n" y x
+	add_id_or_imm oc (V y) x
       else
-	(if x <> y then Printf.fprintf oc "\tMOV\t%s, %s\n" y x;
-	 Printf.fprintf oc "\tADD\t%s, %s\n" (pp_id_or_imm z') x)
+	(if x <> y then mov_labelref_or_reg oc y x;
+	 	add_id_or_imm oc z' x)
   | NonTail(x), Sub(y, z') ->
-	(if x <> y then Printf.fprintf oc "\tMOV\t%s, %s\n" y x;
+	(if x <> y then mov_labelref_or_reg oc y x;
 	 sub_id_or_imm oc z' x)
   | NonTail(x), Ld(y, V(z), i) -> Printf.fprintf oc "\tMOV\t(%s,%s,%d), %s\n" y z i x
   | NonTail(x), Ld(y, C(j), i) -> load_disp oc (j * i) y x
   | NonTail(_), St(x, y, V(z), i) -> Printf.fprintf oc "\tMOV\t%s, (%s,%s,%d)\n" x y z i
-  | NonTail(_), St(x, y, C(j), i) -> Printf.fprintf oc "\tMOV\t%s, %d(%s)\n" x (j * i) y
+  | NonTail(_), St(x, y, C(j), i) -> store_disp oc (j * i) x y
   | NonTail(x), FMovD(y) ->
       if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x
   | NonTail(x), FNegD(y) ->
@@ -231,9 +284,10 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   | NonTail(a), CallCls(x, ys, zs) ->
       g'_args oc [(x, reg_cl)] ys zs;
       let ss = stacksize () in
-      if ss > 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" ss reg_sp;
-      Printf.fprintf oc "\tJSR\t*(%s)\n" reg_cl;
-      if ss > 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" (-ss) reg_sp;
+      if ss > 0 then add_imm oc ss reg_sp;
+      Printf.fprintf oc "\tJSR\t@%s\n" reg_cl;
+      nop oc;
+      if ss > 0 then add_imm oc (-ss) reg_sp;
       if List.mem a allregs && a <> regs.(0) then
         Printf.fprintf oc "\tMOV\t%s, %s\n" regs.(0) a
       else if List.mem a allfregs && a <> fregs.(0) then
@@ -241,9 +295,9 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   | NonTail(a), CallDir(Id.L(x), ys, zs) ->
       g'_args oc [] ys zs;
       let ss = stacksize () in
-      if ss > 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" ss reg_sp;
+      if ss > 0 then add_imm oc ss reg_sp;
       call oc x;
-      if ss > 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" (-ss) reg_sp;
+      if ss > 0 then add_imm oc (-ss) reg_sp;
       if List.mem a allregs && a <> regs.(0) then
         Printf.fprintf oc "\tMOV\t%s, %s\n" regs.(0) a
       else if List.mem a allfregs && a <> fregs.(0) then
@@ -306,13 +360,15 @@ let f oc (Prog(data, fundefs, e)) =
   Printf.fprintf oc "\tMOV #15, R14\n";
   Printf.fprintf oc "\tSHLD R14, R15\n";
   g oc (NonTail(regs.(0)), e);
-  Printf.fprintf oc "BRA\t.end\n";
+  Printf.fprintf oc "\tBRA\t.end\n";
   List.iter (fun fundef -> h oc fundef) fundefs;
   stackset := S.empty;
   stackmap := [];
   Printf.fprintf oc "min_caml_print_int\n"; (* dummy print routine. it does nothing. *)
   Printf.fprintf oc "\tRTS\n"; (* return *)
   nop oc;
+  Printf.fprintf oc "min_caml_hp\n";
+  Printf.fprintf oc "\t.data.l\t#65536\n";
   Printf.fprintf oc ".end\n";
   Printf.fprintf oc "\tAND R0, R0\n"
 
