@@ -96,6 +96,7 @@ let mov_label oc (label : string) r =
   Printf.fprintf oc "\tMOV.L\t%s, %s\n" uniq r;
   Printf.fprintf oc "\tBRA\t%s\n" endpoint;
   nop;
+  Printf.fprintf oc "\t.align\n";
   Printf.fprintf oc "%s\n" uniq;
   Printf.fprintf oc "\t.data.l\t%s\n" label;
   Printf.fprintf oc "%s\n" endpoint
@@ -285,7 +286,8 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       g'_args oc [(x, reg_cl)] ys zs;
       let ss = stacksize () in
       if ss > 0 then add_imm oc ss reg_sp;
-      Printf.fprintf oc "\tJSR\t@%s\n" reg_cl;
+      Printf.fprintf oc "\tMOV.L\t@%s, R14\n" reg_cl;
+      Printf.fprintf oc "\tJSR\t@R14\n";
       nop oc;
       if ss > 0 then add_imm oc (-ss) reg_sp;
       if List.mem a allregs && a <> regs.(0) then
