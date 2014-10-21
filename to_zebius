@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-ln -sf zebius/*.ml{,i} .
-# cd shootout; ln -sf zebius/Makefile .
-# cd ../bytemark; ln -sf zebius/Makefile .
-# cd ../min-rt; ln -sf zebius/globals.s .
-cd ..
+cp zebius/*.ml{,i} .
+# cd shootout; ln -sf zebius/Makefile .; cd ..
+# cd bytemark; ln -sf zebius/Makefile .; cd ..
