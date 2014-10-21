@@ -84,8 +84,24 @@ let rts oc =
   Printf.fprintf oc "\tMOV.L\t@R15, R14\n";
   Printf.fprintf oc "\tJMP\t@R14\n";
   nop oc
+let mov_label oc (label : string) r = 
+  let uniq= Id.genid ".imm_addr" in
+  let endpoint = Id.genid ".imm_endp" in
+  Printf.fprintf oc "\tMOV.L\t%s, %s\n" uniq r;
+  Printf.fprintf oc "\tBRA\t%s\n" endpoint;
+  nop oc;
+  Printf.fprintf oc "\t.align\n";
+  Printf.fprintf oc "%s\n" uniq;
+  Printf.fprintf oc "\t.data.l\t%s\n" label;
+  Printf.fprintf oc "%s\n" endpoint
+
+let mov_imm oc imm r =
+  if -128 <= imm && imm <= 127 then
+    Printf.fprintf oc "\tMOV\t#%d, %s\n" imm r
+  else
+    mov_label oc (Printf.sprintf "#%d" imm) r
 let cmp_imm oc asmstr imm r =
-  Printf.fprintf oc "\tMOV\t#%d, R14\n" imm;
+  mov_imm oc imm "R14";
   Printf.fprintf oc "\t%s\tR14, %s\n" asmstr r
 let cmp_id_or_imm oc ii r = match ii with
   | V reg -> Printf.fprintf oc "\tCMP\t%s, %s\n" reg r
@@ -98,16 +114,6 @@ let cmp_le_id_or_imm oc ii r = match ii with
   | V reg -> Printf.fprintf oc "\tCMP/GT\t%s, %s\n" reg r
   | C imm -> cmp_imm oc "CMP/GT" imm r
 
-let mov_label oc (label : string) r = 
-  let uniq= Id.genid ".imm_addr" in
-  let endpoint = Id.genid ".imm_endp" in
-  Printf.fprintf oc "\tMOV.L\t%s, %s\n" uniq r;
-  Printf.fprintf oc "\tBRA\t%s\n" endpoint;
-  nop oc;
-  Printf.fprintf oc "\t.align\n";
-  Printf.fprintf oc "%s\n" uniq;
-  Printf.fprintf oc "\t.data.l\t%s\n" label;
-  Printf.fprintf oc "%s\n" endpoint
 
 let sub_id_or_imm oc ii r = match ii with
   | V reg -> Printf.fprintf oc "\tSUB\t%s, %s\n" reg r
@@ -163,7 +169,7 @@ let rec g oc = function (* 命令列のアセンブリ生成 (caml2html: emit_g) *)
 and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   (* 末尾でなかったら計算結果をdestにセット (caml2html: emit_nontail) *)
   | NonTail(_), Nop -> ()
-  | NonTail(x), Set(i) -> Printf.fprintf oc "\tMOV\t#%d, %s\n" i x
+  | NonTail(x), Set(i) -> mov_imm oc i x
   | NonTail(x), SetL(Id.L(y)) -> mov_label oc y x
   | NonTail(x), Mov(y) ->
       if x <> y then mov_labelref_or_reg oc y x
@@ -254,12 +260,13 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       | _ -> assert false);
       rts oc
   | Tail, IfEq(x, y', e1, e2) ->
-      cmp_id_or_imm oc y' x;
-      g'_tail_if oc e1 e2 ".JE" "BT"
+      cmp_eq_id_or_imm oc y' x;
+      g'_tail_if oc e1 e2 ".JE" "BF"
   | Tail, IfLE(x, y', e1, e2) ->
       cmp_le_id_or_imm oc y' x;
       g'_tail_if oc e1 e2 ".JLE" "BT"
   | Tail, IfGE(x, y', e1, e2) ->
+      failwith "tail-gt";
       cmp_id_or_imm oc y' x;
       g'_tail_if oc e1 e2 ".JGE" "BF"
   | Tail, IfFEq(x, y, e1, e2) ->
@@ -269,12 +276,13 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       Printf.fprintf oc "\tcomisd\t%s, %s\n" y x;
       g'_tail_if oc e1 e2 "jbe" "ja"
   | NonTail(z), IfEq(x, y', e1, e2) ->
-      cmp_id_or_imm oc y' x;
-      g'_non_tail_if oc (NonTail(z)) e1 e2 ".je" "BT"
+      cmp_eq_id_or_imm oc y' x;
+      g'_non_tail_if oc (NonTail(z)) e1 e2 ".je" "BF"
   | NonTail(z), IfLE(x, y', e1, e2) ->
       cmp_le_id_or_imm oc y' x;
       g'_non_tail_if oc (NonTail(z)) e1 e2 ".jle" "BT"
   | NonTail(z), IfGE(x, y', e1, e2) ->
+      failwith "nontail-gt";
       cmp_id_or_imm oc y' x;
       g'_non_tail_if oc (NonTail(z)) e1 e2 ".jge" "BF"
   | NonTail(z), IfFEq(x, y, e1, e2) ->
@@ -342,14 +350,19 @@ and g'_non_tail_if oc dest e1 e2 b bn =
 and g'_args oc x_reg_cl ys zs =
   assert (List.length ys <= Array.length regs - List.length x_reg_cl);
   assert (List.length zs <= Array.length fregs);
-  let sw = Printf.sprintf "%d(%s)" (stacksize ()) reg_sp in
+  let sw = "(dummy_register)" in
   let (i, yrs) =
     List.fold_left
       (fun (i, yrs) y -> (i + 1, (y, regs.(i)) :: yrs))
       (0, x_reg_cl)
       ys in
   List.iter
-    (fun (y, r) -> Printf.fprintf oc "\tMOV\t%s, %s\n" y r)
+    (fun (y, r) -> if y = sw then
+       load_disp oc (stacksize ()) reg_sp r
+     else if r = sw then
+       store_disp oc (stacksize ()) y reg_sp
+     else
+       Printf.fprintf oc "\tMOV\t%s, %s\n" y r)
     (shuffle sw yrs);
   let (d, zfrs) =
     List.fold_left
