@@ -71,6 +71,14 @@ let call oc sr =
   Printf.fprintf oc "%s\n" uniq_label;
   Printf.fprintf oc "\t.data.l\t%s\n" sr;
   Printf.fprintf oc "%s\n" endpoint
+let jmp oc sr =
+  let uniq_label = Id.genid ".call_addr" in
+  Printf.fprintf oc "\tMOV.L\t%s, R14\n" uniq_label;
+  Printf.fprintf oc "\tJMP\t@R14\n";
+  nop oc;
+  Printf.fprintf oc "\t.align\n";
+  Printf.fprintf oc "%s\n" uniq_label;
+  Printf.fprintf oc "\t.data.l\t%s\n" sr
 let rts oc = 
   Printf.fprintf oc "\tADD\t#-4, R15\n";
   Printf.fprintf oc "\tMOV.L\t@R15, R14\n";
@@ -95,7 +103,7 @@ let mov_label oc (label : string) r =
   let endpoint = Id.genid ".imm_endp" in
   Printf.fprintf oc "\tMOV.L\t%s, %s\n" uniq r;
   Printf.fprintf oc "\tBRA\t%s\n" endpoint;
-  nop;
+  nop oc;
   Printf.fprintf oc "\t.align\n";
   Printf.fprintf oc "%s\n" uniq;
   Printf.fprintf oc "\t.data.l\t%s\n" label;
@@ -281,7 +289,12 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       Printf.fprintf oc "\tjmp\t*(%s)\n" reg_cl;
   | Tail, CallDir(Id.L(x), ys, zs) -> (* 末尾呼び出し *)
       g'_args oc [] ys zs;
-      Printf.fprintf oc "\tJSR\t%s\n" x;
+      let ss = stacksize () in
+      if ss > 0 then add_imm oc ss reg_sp;
+      call oc x;
+      if ss > 0 then add_imm oc (-ss) reg_sp;
+      rts oc
+      (* jmp oc x;  *) (* Since tailcall optimization is buggy, we use ordinary call instead. *) 
   | NonTail(a), CallCls(x, ys, zs) ->
       g'_args oc [(x, reg_cl)] ys zs;
       let ss = stacksize () in
