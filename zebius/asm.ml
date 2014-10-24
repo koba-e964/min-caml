@@ -7,21 +7,24 @@ type t = (* 命令の列 (caml2html: sparcasm_t) *)
 and exp = (* 一つ一つの命令に対応する式 (caml2html: sparcasm_exp) *)
   | Nop
   | Set of int
+  | SetF of float
   | SetL of Id.l
   | Mov of Id.t
   | Neg of Id.t
   | Add of Id.t * id_or_imm
   | Sub of Id.t * Id.t
-  | Ld of Id.t * id_or_imm * int
-  | St of Id.t * Id.t * id_or_imm * int
+  | Mul of Id.t * int (* immediate only *)
+  | Div of Id.t * int
+  | Ld of Id.t (* @addr *)
+  | St of Id.t * Id.t (* op1 = @op2 *)
   | FMovD of Id.t
   | FNegD of Id.t
   | FAddD of Id.t * Id.t
   | FSubD of Id.t * Id.t
   | FMulD of Id.t * Id.t
   | FDivD of Id.t * Id.t
-  | LdDF of Id.t * id_or_imm * int
-  | StDF of Id.t * Id.t * id_or_imm * int
+  | LdF of Id.t
+  | StF of Id.t * Id.t
   | Comment of string
   (* virtual instructions *)
   | IfEq of Id.t * Id.t * t * t
@@ -63,11 +66,10 @@ let rec remove_and_uniq xs = function
 (* free variables in the order of use (for spilling) (caml2html: sparcasm_fv) *)
 let fv_id_or_imm = function V(x) -> [x] | _ -> []
 let rec fv_exp = function
-  | Nop | Set(_) | SetL(_) | Comment(_) | Restore(_) -> []
-  | Mov(x) | Neg(x) | FMovD(x) | FNegD(x) | Save(x, _) -> [x]
-  | Add(x, y') | Ld(x, y', _) | LdDF(x, y', _) -> x :: fv_id_or_imm y'
-  | St(x, y, z', _) | StDF(x, y, z', _) -> x :: y :: fv_id_or_imm z'
-  | Sub(x, y) | FAddD(x, y) | FSubD(x, y) | FMulD(x, y) | FDivD(x, y) -> [x; y]
+  | Nop | Set(_) | SetF _ | SetL(_) | Comment(_) | Restore(_) -> []
+  | Mov(x) | Neg(x) | FMovD(x) | FNegD(x) | Save(x, _)  | Ld x | LdF x | Mul (x,_) | Div (x, _) -> [x]
+  | Add(x, y') -> x :: fv_id_or_imm y'
+  | St(x, y) | StF(x, y) | Sub(x, y) | FAddD(x, y) | FSubD(x, y) | FMulD(x, y) | FDivD(x, y) -> [x; y]
   | IfEq(x, y', e1, e2) | IfLE(x, y', e1, e2) -> x :: y' :: remove_and_uniq S.empty (fv e1 @ fv e2) (* uniq here just for efficiency *)
   | IfFEq(x, y, e1, e2) | IfFLE(x, y, e1, e2) -> x :: y :: remove_and_uniq S.empty (fv e1 @ fv e2) (* uniq here just for efficiency *)
   | CallCls(x, ys, zs) -> x :: ys @ zs
@@ -97,21 +99,24 @@ and show_ii = function
 and show_exp x = match x with
   | Nop -> "nop"
   | Set i -> "set " ^ string_of_int i
+  | SetF f -> "setf " ^ string_of_float f
   | SetL (Id.L i) -> "set_l " ^ i
   | Mov id -> "mov " ^ id
   | Neg id -> "neg " ^ id
   | Add (id, v) -> "add " ^ id ^ ", " ^ show_ii v
   | Sub (id, v) -> "sub " ^ id ^ ", " ^ v
-  | Ld (id, v, k) -> "ld " ^ id ^ ", " ^ show_ii v ^ "," ^ string_of_int k
-  | St (id1, id2, v, k) -> "st " ^ id1 ^ ", " ^ id2 ^ ", " ^ show_ii v ^ "," ^ string_of_int k
+  | Mul (id, v) -> "mul " ^ id ^ ", " ^ string_of_int v
+  | Div (id, v) -> "div " ^ id ^ ", " ^ string_of_int v
+  | Ld (id) -> "ld " ^ id 
+  | St (id1, id2) -> "st " ^ id1 ^ ", @" ^ id2
   | FMovD id -> "flop"
   | FNegD id -> "flop"
   | FAddD (id1,id2) -> "flop"
   | FSubD (id1,id2) -> "flop"
   | FMulD (id1,id2) -> "flop"
   | FDivD (id1,id2) -> "flop"
-  | LdDF (id1,v,k) -> "flop"
-  | StDF (id1,id2,v,k) -> "flop"
+  | LdF (id1) -> "ldf " ^ id1
+  | StF (id1,id2) -> "stf " ^ id1 ^ ", @" ^ id2
   | Comment str -> "comment " ^ str
   | IfEq (id, v, x, y) -> "if " ^ id ^ " = " ^ v ^ "\nthen " ^ show_asm_t x ^ "\nelse " ^ show_asm_t y
   | IfLE (id, v, x, y) -> "if " ^ id ^ " <= " ^ v ^ "\nthen " ^ show_asm_t x ^ "\nelse " ^ show_asm_t y

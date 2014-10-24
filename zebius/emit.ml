@@ -161,6 +161,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   (* 末尾でなかったら計算結果をdestにセット (caml2html: emit_nontail) *)
   | NonTail(_), Nop -> ()
   | NonTail(x), Set(i) -> mov_imm oc i x
+  | NonTail(x), SetF(f) -> Printf.fprintf oc "\tmov_float\t%s, %f\n" x f
   | NonTail(x), SetL(Id.L(y)) -> mov_label oc y x
   | NonTail(x), Mov(y) ->
       if x <> y then mov_labelref_or_reg oc y x
@@ -176,10 +177,11 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   | NonTail(x), Sub(y, z') ->
 	(if x <> y then mov_labelref_or_reg oc y x;
 	 sub_id oc z' x)
-  | NonTail(x), Ld(y, V(z), i) -> Printf.fprintf oc "\tMOV\t(%s,%s,%d), %s\n" y z i x
-  | NonTail(x), Ld(y, C(j), i) -> load_disp oc (j * i) y x
-  | NonTail(_), St(x, y, V(z), i) -> Printf.fprintf oc "\tMOV\t%s, (%s,%s,%d)\n" x y z i
-  | NonTail(_), St(x, y, C(j), i) -> store_disp oc (j * i) x y
+  | NonTail(x), Mul(y, z) -> if z == 2 then (mov_labelref_or_reg oc y x; add_id oc x x)
+    else failwith ("invalid mul imm: " ^ string_of_int z)
+  | NonTail(x), Div(y, z) -> failwith ("invalid div imm: " ^ string_of_int z)
+  | NonTail(x), Ld(y) -> Printf.fprintf oc "\tMOV\t@%s, %s\n" y x
+  | NonTail(_), St(x, y) -> Printf.fprintf oc "\tMOV\t%s, @%s\n" x y
   | NonTail(x), FMovD(y) ->
       if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x
   | NonTail(x), FNegD(y) ->
@@ -215,10 +217,8 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       else
 	(if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
 	 Printf.fprintf oc "\tdivsd\t%s, %s\n" z x)
-  | NonTail(x), LdDF(y, V(z), i) -> Printf.fprintf oc "\tFMOV\t(%s,%s,%d), %s\n" y z i x
-  | NonTail(x), LdDF(y, C(j), i) -> Printf.fprintf oc "\tFMOV\t%d(%s), %s\n" (j * i) y x
-  | NonTail(_), StDF(x, y, V(z), i) -> Printf.fprintf oc "\tFMOV\t%s, (%s,%s,%d)\n" x y z i
-  | NonTail(_), StDF(x, y, C(j), i) -> Printf.fprintf oc "\tFMOV\t%s, %d(%s)\n" x (j * i) y
+  | NonTail(x), LdF(y) -> Printf.fprintf oc "\tFMOV\t@%s, %s\n" y x
+  | NonTail(_), StF(x, y) -> Printf.fprintf oc "\tFMOV\t%s, @%s\n" x y
   | NonTail(_), Comment(s) -> Printf.fprintf oc "\t# %s\n" s
   (* 退避の仮想命令の実装 (caml2html: emit_save) *)
   | NonTail(_), Save(x, y) when List.mem x allregs && not (S.mem y !stackset) ->
@@ -235,13 +235,13 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       assert (List.mem x allfregs);
       Printf.fprintf oc "\tFMOV\t%d(%s), %s\n" (offset y) reg_sp x
   (* 末尾だったら計算結果を第一レジスタにセットしてret (caml2html: emit_tailret) *)
-  | Tail, (Nop | St _ | StDF _ | Comment _ | Save _ as exp) ->
+  | Tail, (Nop | St _ | StF _ | Comment _ | Save _ as exp) ->
       g' oc (NonTail(Id.gentmp Type.Unit), exp);
       rts oc
-  | Tail, (Set _ | SetL _ | Mov _ | Neg _ | Add _ | Sub _ | Ld _ as exp) ->
+  | Tail, (Set _ | SetL _ | SetF _ | Mov _ | Neg _ | Add _ | Sub _ | Mul _ | Div _ | Ld _ as exp) ->
       g' oc (NonTail(regs.(0)), exp);
       rts oc
-  | Tail, (FMovD _ | FNegD _ | FAddD _ | FSubD _ | FMulD _ | FDivD _ | LdDF _  as exp) ->
+  | Tail, (FMovD _ | FNegD _ | FAddD _ | FSubD _ | FMulD _ | FDivD _ | LdF _  as exp) ->
       g' oc (NonTail(fregs.(0)), exp);
       rts oc
   | Tail, (Restore(x) as exp) ->

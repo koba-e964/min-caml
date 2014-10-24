@@ -5,21 +5,24 @@ type t =
 and exp =
   | Nop
   | Set of int
+  | SetF of float
   | SetL of Id.l
   | Mov of Id.t
   | Neg of Id.t
   | Add of Id.t * id_or_imm
   | Sub of Id.t * Id.t
-  | Ld of Id.t * id_or_imm * int
-  | St of Id.t * Id.t * id_or_imm * int
+  | Mul of Id.t * int (* immediate only *)
+  | Div of Id.t * int
+  | Ld of Id.t (* @addr *)
+  | St of Id.t * Id.t (* op1 = @op2 *)
   | FMovD of Id.t
   | FNegD of Id.t
   | FAddD of Id.t * Id.t
   | FSubD of Id.t * Id.t
   | FMulD of Id.t * Id.t
   | FDivD of Id.t * Id.t
-  | LdDF of Id.t * id_or_imm * int
-  | StDF of Id.t * Id.t * id_or_imm * int
+  | LdF of Id.t
+  | StF of Id.t * Id.t
   | Comment of string
   (* virtual instructions *)
   | IfEq of Id.t * Id.t * t * t
