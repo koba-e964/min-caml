@@ -100,12 +100,6 @@ let mov_imm oc imm r =
     Printf.fprintf oc "\tMOV\t#%d, %s\n" imm r
   else
     mov_label oc (Printf.sprintf "#%d" imm) r
-let cmp_imm oc asmstr imm r =
-  mov_imm oc imm "R14";
-  Printf.fprintf oc "\t%s\tR14, %s\n" asmstr r
-let cmp_id_or_imm oc ii r = match ii with
-  | V reg -> Printf.fprintf oc "\tCMP\t%s, %s\n" reg r
-  | C imm -> cmp_imm oc "***" imm r
 
 let cmp_eq oc src r = 
   Printf.fprintf oc "\tCMP/EQ\t%s, %s\n" src r
