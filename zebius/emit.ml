@@ -107,17 +107,14 @@ let cmp_id_or_imm oc ii r = match ii with
   | V reg -> Printf.fprintf oc "\tCMP\t%s, %s\n" reg r
   | C imm -> cmp_imm oc "***" imm r
 
-let cmp_eq_id_or_imm oc ii r = match ii with
-  | V reg -> Printf.fprintf oc "\tCMP/EQ\t%s, %s\n" reg r
-  | C imm -> cmp_imm oc "CMP/EQ" imm r
-let cmp_le_id_or_imm oc ii r = match ii with
-  | V reg -> Printf.fprintf oc "\tCMP/GT\t%s, %s\n" reg r
-  | C imm -> cmp_imm oc "CMP/GT" imm r
+let cmp_eq oc src r = 
+  Printf.fprintf oc "\tCMP/EQ\t%s, %s\n" src r
+let cmp_le oc src r =
+  Printf.fprintf oc "\tCMP/GT\t%s, %s\n" src r
 
 
-let sub_id_or_imm oc ii r = match ii with
-  | V reg -> Printf.fprintf oc "\tSUB\t%s, %s\n" reg r
-  | C imm -> Printf.fprintf oc "\tADD\t#%d, %s\n" (-imm) r
+let sub_id oc src r = 
+  Printf.fprintf oc "\tSUB\t%s, %s\n" src r
 let add_imm oc imm dest =
   if is_reg_g dest then
     Printf.fprintf oc "\tADD\t#%d, %s\n" imm dest
@@ -184,7 +181,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
 	 	add_id_or_imm oc z' x)
   | NonTail(x), Sub(y, z') ->
 	(if x <> y then mov_labelref_or_reg oc y x;
-	 sub_id_or_imm oc z' x)
+	 sub_id oc z' x)
   | NonTail(x), Ld(y, V(z), i) -> Printf.fprintf oc "\tMOV\t(%s,%s,%d), %s\n" y z i x
   | NonTail(x), Ld(y, C(j), i) -> load_disp oc (j * i) y x
   | NonTail(_), St(x, y, V(z), i) -> Printf.fprintf oc "\tMOV\t%s, (%s,%s,%d)\n" x y z i
@@ -260,15 +257,11 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       | _ -> assert false);
       rts oc
   | Tail, IfEq(x, y', e1, e2) ->
-      cmp_eq_id_or_imm oc y' x;
+      cmp_eq oc y' x;
       g'_tail_if oc e1 e2 ".JE" "BF"
   | Tail, IfLE(x, y', e1, e2) ->
-      cmp_le_id_or_imm oc y' x;
+      cmp_le oc y' x;
       g'_tail_if oc e1 e2 ".JLE" "BT"
-  | Tail, IfGE(x, y', e1, e2) ->
-      failwith "tail-gt";
-      cmp_id_or_imm oc y' x;
-      g'_tail_if oc e1 e2 ".JGE" "BF"
   | Tail, IfFEq(x, y, e1, e2) ->
       Printf.fprintf oc "\tcomisd\t%s, %s\n" y x;
       g'_tail_if oc e1 e2 "je" "jne"
@@ -276,15 +269,11 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       Printf.fprintf oc "\tcomisd\t%s, %s\n" y x;
       g'_tail_if oc e1 e2 "jbe" "ja"
   | NonTail(z), IfEq(x, y', e1, e2) ->
-      cmp_eq_id_or_imm oc y' x;
+      cmp_eq oc y' x;
       g'_non_tail_if oc (NonTail(z)) e1 e2 ".je" "BF"
   | NonTail(z), IfLE(x, y', e1, e2) ->
-      cmp_le_id_or_imm oc y' x;
+      cmp_le oc y' x;
       g'_non_tail_if oc (NonTail(z)) e1 e2 ".jle" "BT"
-  | NonTail(z), IfGE(x, y', e1, e2) ->
-      failwith "nontail-gt";
-      cmp_id_or_imm oc y' x;
-      g'_non_tail_if oc (NonTail(z)) e1 e2 ".jge" "BF"
   | NonTail(z), IfFEq(x, y, e1, e2) ->
       Printf.fprintf oc "\tcomisd\t%s, %s\n" y x;
       g'_non_tail_if oc (NonTail(z)) e1 e2 "je" "jne"

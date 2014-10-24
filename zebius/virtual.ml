@@ -48,7 +48,7 @@ let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
       Let((x, Type.Int), SetL(l), Ans(LdDF(x, C(0), 1)))
   | Closure.Neg(x) -> Ans(Neg(x))
   | Closure.Add(x, y) -> Ans(Add(x, V(y)))
-  | Closure.Sub(x, y) -> Ans(Sub(x, V(y)))
+  | Closure.Sub(x, y) -> Ans(Sub(x, y))
   | Closure.FNeg(x) -> Ans(FNegD(x))
   | Closure.FAdd(x, y) -> Ans(FAddD(x, y))
   | Closure.FSub(x, y) -> Ans(FSubD(x, y))
@@ -56,12 +56,12 @@ let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
   | Closure.FDiv(x, y) -> Ans(FDivD(x, y))
   | Closure.IfEq(x, y, e1, e2) ->
       (match M.find x env with
-      | Type.Bool | Type.Int -> Ans(IfEq(x, V(y), g env e1, g env e2))
+      | Type.Bool | Type.Int -> Ans(IfEq(x, y, g env e1, g env e2))
       | Type.Float -> Ans(IfFEq(x, y, g env e1, g env e2))
       | _ -> failwith "equality supported only for bool, int, and float")
   | Closure.IfLE(x, y, e1, e2) ->
       (match M.find x env with
-      | Type.Bool | Type.Int -> Ans(IfLE(x, V(y), g env e1, g env e2))
+      | Type.Bool | Type.Int -> Ans(IfLE(x, y, g env e1, g env e2))
       | Type.Float -> Ans(IfFLE(x, y, g env e1, g env e2))
       | _ -> failwith "inequality supported only for bool, int, and float")
   | Closure.Let((x, t1), e1, e2) ->
