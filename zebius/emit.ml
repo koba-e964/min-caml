@@ -56,6 +56,15 @@ let store_disp oc n src dest =
   Printf.fprintf oc "\tMOV.L\t%s, @%s\n" src dest;
   if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" (-n) dest
 
+let load_disp_float oc n src dest = 
+  if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" n src;
+  Printf.fprintf oc "\tFMOV.S\t@%s, %s\n" src dest;
+  if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" (-n) src
+let store_disp_float oc n src dest = 
+  if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" n dest;
+  Printf.fprintf oc "\tFMOV.S\t%s, @%s\n" src dest;
+  if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" (-n) dest
+
 let nop oc = 
   Printf.fprintf oc "\tAND\tR0, R0\n"
 
@@ -88,6 +97,19 @@ let mov_label oc (label : string) r =
   let uniq= Id.genid ".imm_addr" in
   let endpoint = Id.genid ".imm_endp" in
   Printf.fprintf oc "\tMOV.L\t%s, %s\n" uniq r;
+  Printf.fprintf oc "\tBRA\t%s\n" endpoint;
+  nop oc;
+  Printf.fprintf oc "\t.align\n";
+  Printf.fprintf oc "%s\n" uniq;
+  Printf.fprintf oc "\t.data.l\t%s\n" label;
+  Printf.fprintf oc "%s\n" endpoint
+
+let mov_label_float oc (label : string) r = 
+  let uniq= Id.genid ".imm_addr" in
+  let endpoint = Id.genid ".imm_endp" in
+  Printf.fprintf oc "\tMOV.L\t%s, R14\n" uniq;
+  Printf.fprintf oc "\tLDS\tR14, FPUL\n";
+  Printf.fprintf oc "\tFSTS\tFPUL, %s\n" r;
   Printf.fprintf oc "\tBRA\t%s\n" endpoint;
   nop oc;
   Printf.fprintf oc "\t.align\n";
@@ -151,6 +173,10 @@ let mov_labelref_or_reg oc (lr : string) r =
     Printf.fprintf oc "\tMOV\t%s, %s\n" lr r
   else
     Printf.fprintf oc "\tMOV.L\t%s, %s\n" lr r
+
+let mov_float oc f r = 
+    mov_label_float oc (Printf.sprintf "#%s" (Int32.to_string (Int32.bits_of_float f))) r;
+    Printf.fprintf oc "\t; :float = %f\n" f
 type dest = Tail | NonTail of Id.t (* 末尾かどうかを表すデータ型 (caml2html: emit_dest) *)
 let rec g oc = function (* 命令列のアセンブリ生成 (caml2html: emit_g) *)
   | dest, Ans(exp) -> g' oc (dest, exp)
@@ -161,13 +187,13 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   (* 末尾でなかったら計算結果をdestにセット (caml2html: emit_nontail) *)
   | NonTail(_), Nop -> ()
   | NonTail(x), Set(i) -> mov_imm oc i x
-  | NonTail(x), SetF(f) -> Printf.fprintf oc "\tmov_float\t%s, %f\n" x f
+  | NonTail(x), SetF(f) -> mov_float oc f x
   | NonTail(x), SetL(Id.L(y)) -> mov_label oc y x
   | NonTail(x), Mov(y) ->
       if x <> y then mov_labelref_or_reg oc y x
   | NonTail(x), Neg(y) ->
       if x <> y then mov_labelref_or_reg oc y x;
-      Printf.fprintf oc "\tnegl\t%s\n" x
+      Printf.fprintf oc "\tNEG\t%s\n" x
   | NonTail(x), Add(y, z') ->
       if V(x) = z' then
 	add_id_or_imm oc (V y) x
@@ -186,34 +212,34 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x
   | NonTail(x), FNegD(y) ->
       if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-      Printf.fprintf oc "\txorpd\tmin_caml_fnegd, %s\n" x
+      Printf.fprintf oc "\tFNEG\t%s\n" x
   | NonTail(x), FAddD(y, z) ->
       if x = z then
-        Printf.fprintf oc "\taddsd\t%s, %s\n" y x
+        Printf.fprintf oc "\tFADD\t%s, %s\n" y x
       else
         (if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-	 Printf.fprintf oc "\taddsd\t%s, %s\n" z x)
+	 Printf.fprintf oc "\tFADD\t%s, %s\n" z x)
   | NonTail(x), FSubD(y, z) ->
       if x = z then (* [XXX] ugly *)
 	let ss = stacksize () in
-	Printf.fprintf oc "\tFMOV\t%s, %d(%s)\n" z ss reg_sp;
+	Printf.fprintf oc "\tFMOV\t%s, FR14\n" z;
 	if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-	Printf.fprintf oc "\tsubsd\t%d(%s), %s\n" ss reg_sp x
+	Printf.fprintf oc "\tFSUB\tFR14, %s\n"  x
       else
 	(if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-	 Printf.fprintf oc "\tsubsd\t%s, %s\n" z x)
+	 Printf.fprintf oc "\tFSUB\t%s, %s\n" z x)
   | NonTail(x), FMulD(y, z) ->
       if x = z then
-        Printf.fprintf oc "\tmulsd\t%s, %s\n" y x
+        Printf.fprintf oc "\tFMUL\t%s, %s\n" y x
       else
         (if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-	 Printf.fprintf oc "\tmulsd\t%s, %s\n" z x)
+	 Printf.fprintf oc "\tFMUL\t%s, %s\n" z x)
   | NonTail(x), FDivD(y, z) ->
       if x = z then (* [XXX] ugly *)
 	let ss = stacksize () in
-	Printf.fprintf oc "\tFMOV\t%s, %d(%s)\n" z ss reg_sp;
+	Printf.fprintf oc "\tFMOV\t%s, FR14\n" y;
 	if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-	Printf.fprintf oc "\tdivsd\t%d(%s), %s\n" ss reg_sp x
+	Printf.fprintf oc "\tFDIV\tR14, %s\n" x
       else
 	(if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
 	 Printf.fprintf oc "\tdivsd\t%s, %s\n" z x)
@@ -226,14 +252,15 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       store_disp oc (offset y) x reg_sp
   | NonTail(_), Save(x, y) when List.mem x allfregs && not (S.mem y !stackset) ->
       savef y;
-      Printf.fprintf oc "\tFMOV\t%s, %d(%s)\n" x (offset y) reg_sp
+      store_disp_float oc (offset y) x reg_sp
+      (* Printf.fprintf oc "\tFMOV\t%s, %d(%s)\n" x (offset y) reg_sp *)
   | NonTail(_), Save(x, y) -> assert (S.mem y !stackset); ()
   (* 復帰の仮想命令の実装 (caml2html: emit_restore) *)
   | NonTail(x), Restore(y) when List.mem x allregs ->
       load_disp oc (offset y) reg_sp x
   | NonTail(x), Restore(y) ->
       assert (List.mem x allfregs);
-      Printf.fprintf oc "\tFMOV\t%d(%s), %s\n" (offset y) reg_sp x
+      load_disp_float oc (offset y) reg_sp x
   (* 末尾だったら計算結果を第一レジスタにセットしてret (caml2html: emit_tailret) *)
   | Tail, (Nop | St _ | StF _ | Comment _ | Save _ as exp) ->
       g' oc (NonTail(Id.gentmp Type.Unit), exp);
