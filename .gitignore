@@ -1,4 +1,5 @@
 _build/
+._*/
 *.native
 *.log
 *.cmp
@@ -26,5 +27,7 @@ min-rt/*.s
 /virtual.ml
 /libmincaml.S
 /libmincaml.txt
+/min-caml
+/min-caml.top
 libmincaml_stubs.clib
 
