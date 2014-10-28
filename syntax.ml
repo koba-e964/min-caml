@@ -1,3 +1,6 @@
+type a_op =
+  | AMul | ADiv
+
 type t = (* MinCamlの構文を表現するデータ型 (caml2html: syntax_t) *)
   | Unit
   | Bool of bool
@@ -7,6 +10,7 @@ type t = (* MinCamlの構文を表現するデータ型 (caml2html: syntax_t) *)
   | Neg of t
   | Add of t * t
   | Sub of t * t
+  | Arith of a_op * t * t
   | FNeg of t
   | FAdd of t * t
   | FSub of t * t
@@ -36,6 +40,7 @@ let rec show_syntax_t (syn : t) : string =
     | Neg x -> "neg(" ^ show_syntax_t x ^ ")"
     | Add (x, y) -> "+(" ^ show_syntax_t x ^ ", " ^ show_syntax_t y ^ ")"
     | Sub (x, y) -> "-(" ^ show_syntax_t x ^ ", " ^ show_syntax_t y ^ ")"
+    | Arith (_, x, y) -> "arith(" ^ show_syntax_t x ^ ", " ^ show_syntax_t y ^ ")"
     | FNeg x -> "fneg(" ^ show_syntax_t x ^ ")"
     | FAdd (x, y) -> "+.(" ^ show_syntax_t x ^ ", " ^ show_syntax_t y ^ ")"
     | FSub (x, y) -> "-.(" ^ show_syntax_t x ^ ", " ^ show_syntax_t y ^ ")"
@@ -56,4 +61,6 @@ let rec show_syntax_t (syn : t) : string =
 
 and show_fundef f = match f with
   | { name = (id, ty); args = ls; body = body } -> "fundef(" ^ id ^ "," ^ Type.show_type_t ty ^ "" ^ "," ^ show_syntax_t body ^ ")"
+
+exception ErrPos of int * int
 

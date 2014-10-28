@@ -1,7 +1,37 @@
 min_caml_print_int
 	RTS
+
 min_caml_int_of_float
 	FTRC FR0, FPUL
 	STS FPUL, R0
 	RTS
+
+min_caml_float_of_int
+	LDS R0, FPUL
+	FLOAT FPUL, FR0
+	RTS
+	AND R0, R0
+
+min_caml_abs_float
+	FLDI0 FR1
+	FCMP/GT FR1, FR0
+	BT .mcaf0
+	FNEG FR0
+.mcaf0
+	RTS
+	AND R0, R0
+
+min_caml_sqrt
+	FSQRT FR0
+	RTS
+	AND R0, R0
+
+min_caml_sin	; sin(x) = x
+	RTS
+	AND R0, R0
+
+min_caml_cos	; cos(x) = x
+	RTS
+	AND R0, R0
+
 

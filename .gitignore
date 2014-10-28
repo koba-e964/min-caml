@@ -25,5 +25,6 @@ min-rt/*.s
 /simm.ml
 /virtual.ml
 /libmincaml.S
+/libmincaml.txt
 libmincaml_stubs.clib
 

@@ -8,10 +8,26 @@ let rec iter n e = (* 最適化処理をくりかえす (caml2html: main_iter) *)
   if e = e' then e else
   iter (n - 1) e'
 
-let lexbuf outchan l = (* バッファをコンパイルしてチャンネルへ出力する (caml2html: main_lexbuf) *)
+let read_fully ic : string =
+  let lines = ref "" in
+  try
+    while true do
+      lines := !lines ^ (input_line ic) ^ "\n"
+    done
+    ;""
+  with End_of_file -> !lines
+ 
+
+let lexbuf outchan inchan = (* バッファをコンパイルしてチャンネルへ出力する (caml2html: main_lexbuf) *)
+  let str = read_fully inchan in
   Id.counter := 0;
   Typing.extenv := M.empty;
-  let exp = Parser.exp Lexer.token l in
+  let exp = try
+    Parser.exp Lexer.token (Lexing.from_string str)
+  with 
+    | Syntax.ErrPos (x, y) as e -> Printf.fprintf stderr "parse error at %d-%d, near %s" x y (String.sub str (x-20) (y-x+40)); raise e
+    | e -> print_endline "error:"; raise e
+  in
   print_endline "**** expr ****";
   print_endline (Syntax.show_syntax_t exp);
   let normalized = KNormal.f (Typing.f exp) in
@@ -30,13 +46,12 @@ let lexbuf outchan l = (* バッファをコンパイルしてチャンネルへ出力する (caml2htm
   print_endline "**** reg-alloc ****";
   print_endline (Asm.show_prog reg);
   Emit.f outchan !lib reg
-let string s = lexbuf stdout (Lexing.from_string s) (* 文字列をコンパイルして標準出力に表示する (caml2html: main_string) *)
 
 let file f = (* ファイルをコンパイルしてファイルに出力する (caml2html: main_file) *)
   let inchan = open_in (f ^ ".ml") in
   let outchan = open_out (f ^ ".s") in
   try
-    lexbuf outchan (Lexing.from_channel inchan);
+    lexbuf outchan inchan;
     close_in inchan;
     close_out outchan;
   with e -> (close_in inchan; close_out outchan; raise e)

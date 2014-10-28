@@ -2,6 +2,7 @@
 (* parserが利用する変数、関数、型などの定義 *)
 open Syntax
 let addtyp x = (x, Type.gentyp ())
+
 %}
 
 /* 字句を表すデータ型の定義 (caml2html: parser_token) */
@@ -11,6 +12,8 @@ let addtyp x = (x, Type.gentyp ())
 %token NOT
 %token MINUS
 %token PLUS
+%token AST
+%token SLASH
 %token MINUS_DOT
 %token PLUS_DOT
 %token AST_DOT
@@ -45,9 +48,10 @@ let addtyp x = (x, Type.gentyp ())
 %left COMMA
 %left EQUAL LESS_GREATER LESS GREATER LESS_EQUAL GREATER_EQUAL
 %left PLUS MINUS PLUS_DOT MINUS_DOT
-%left AST_DOT SLASH_DOT
+%left AST SLASH AST_DOT SLASH_DOT
 %right prec_unary_minus
 %left prec_app
+%right prec_unary_semi
 %left DOT
 
 /* 開始記号の定義 */
@@ -109,6 +113,10 @@ exp: /* 一般の式 (caml2html: parser_exp) */
     { FAdd($1, $3) }
 | exp MINUS_DOT exp
     { FSub($1, $3) }
+| exp AST exp
+    { Arith (AMul, $1, $3) }
+| exp SLASH exp
+    { Arith (ADiv, $1, $3) }
 | exp AST_DOT exp
     { FMul($1, $3) }
 | exp SLASH_DOT exp
@@ -130,14 +138,26 @@ exp: /* 一般の式 (caml2html: parser_exp) */
     { Put($1, $4, $7) }
 | exp SEMICOLON exp
     { Let((Id.gentmp Type.Unit, Type.Unit), $1, $3) }
+| exp SEMICOLON
+    %prec prec_unary_semi
+    { $1 }
 | ARRAY_CREATE simple_exp simple_exp
     %prec prec_app
     { Array($2, $3) }
 | error
-    { failwith
-	(Printf.sprintf "parse error near characters %d-%d"
-	   (Parsing.symbol_start ())
-	   (Parsing.symbol_end ())) }
+    { let st = Parsing.symbol_start () in
+      let en = Parsing.symbol_end () in
+      print_endline 
+        (Printf.sprintf "parse error near characters %d-%d" st en);
+      raise (ErrPos (st, en)) }
+
+paren_exp:
+| exp SEMICOLON paren_exp
+    { Let((Id.gentmp Type.Unit, Type.Unit), $1, $3) }
+| exp SEMICOLON
+    { $1 }
+| exp
+    { $1 }
 
 fundef:
 | IDENT formal_args EQUAL exp
