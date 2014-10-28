@@ -392,7 +392,7 @@ let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
   Printf.fprintf oc "\tADD\t#4, R15\n"; (* room for return address *)
   g oc (Tail, e)
 
-let f oc (Prog(data, fundefs, e)) =
+let f oc lib (Prog(data, fundefs, e)) =
   Format.eprintf "generating assembly...@.";
   Printf.fprintf oc "\tMOV #1, R15\n";
   Printf.fprintf oc "\tMOV #15, R14\n";
@@ -402,9 +402,17 @@ let f oc (Prog(data, fundefs, e)) =
   List.iter (fun fundef -> h oc fundef) fundefs;
   stackset := S.empty;
   stackmap := [];
-  Printf.fprintf oc "min_caml_print_int\n"; (* dummy print routine. it does nothing. *)
-  Printf.fprintf oc "\tRTS\n"; (* return *)
-  nop oc;
+  let ic = open_in lib in
+  begin try
+    while true do
+      let line = input_line ic in
+      Printf.fprintf oc "%s\n" line;
+    done
+  with  | End_of_file ->  close_in ic
+        | e ->
+    close_in_noerr ic;
+    raise e
+  end;
   Printf.fprintf oc "min_caml_hp\n";
   Printf.fprintf oc "\t.data.l\t#65536\n";
   Printf.fprintf oc ".end\n";

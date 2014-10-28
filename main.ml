@@ -1,4 +1,5 @@
 let limit = ref 1000
+let lib   = ref "libmincaml.txt"
 
 let rec iter n e = (* 最適化処理をくりかえす (caml2html: main_iter) *)
   Format.eprintf "iteration %d@." n;
@@ -28,7 +29,7 @@ let lexbuf outchan l = (* バッファをコンパイルしてチャンネルへ出力する (caml2htm
   let reg = RegAlloc.f simm in
   print_endline "**** reg-alloc ****";
   print_endline (Asm.show_prog reg);
-  Emit.f outchan reg
+  Emit.f outchan !lib reg
 let string s = lexbuf stdout (Lexing.from_string s) (* 文字列をコンパイルして標準出力に表示する (caml2html: main_string) *)
 
 let file f = (* ファイルをコンパイルしてファイルに出力する (caml2html: main_file) *)
@@ -43,8 +44,10 @@ let file f = (* ファイルをコンパイルしてファイルに出力する (caml2html: main_file
 let () = (* ここからコンパイラの実行が開始される (caml2html: main_entry) *)
   let files = ref [] in
   Arg.parse
-    [("-inline", Arg.Int(fun i -> Inline.threshold := i), "maximum size of functions inlined");
-     ("-iter", Arg.Int(fun i -> limit := i), "maximum number of optimizations iterated")]
+    [("-inline", Arg.Int(fun i -> Inline.threshold := i), "maximum size of functions inlined")
+    ;("-iter", Arg.Int(fun i -> limit := i), "maximum number of optimizations iterated")
+    ;("-lib", Arg.String(fun i -> lib := i), "path to libmincaml.txt")
+    ]
     (fun s -> files := !files @ [s])
     ("Mitou Min-Caml Compiler (C) Eijiro Sumii\n" ^
      Printf.sprintf "usage: %s [-inline m] [-iter n] ...filenames without \".ml\"..." Sys.argv.(0));
