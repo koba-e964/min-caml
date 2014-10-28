@@ -413,8 +413,6 @@ let f oc lib (Prog(data, fundefs, e)) =
     close_in_noerr ic;
     raise e
   end;
-  Printf.fprintf oc "min_caml_hp\n";
-  Printf.fprintf oc "\t.data.l\t#65536\n";
   Printf.fprintf oc ".end\n";
   Printf.fprintf oc "\tAND R0, R0\n"
 
