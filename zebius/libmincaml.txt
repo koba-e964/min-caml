@@ -33,7 +33,11 @@ min_caml_sin	; sin(x) = x
 min_caml_cos	; cos(x) = x
 	RTS
 	AND R0, R0
-	.align
+min_caml_atan ; atan(x) = x
+	RTS
+	AND R0, R0
+
+	.align	
 min_caml_hp
 	.data.l	#65536
 

@@ -21,7 +21,17 @@ let read_fully ic : string =
 let lexbuf outchan inchan = (* バッファをコンパイルしてチャンネルへ出力する (caml2html: main_lexbuf) *)
   let str = read_fully inchan in
   Id.counter := 0;
-  Typing.extenv := M.empty;
+  Typing.extenv := M.add_list
+   [("print_int", Type.Fun ([Type.Int], Type.Unit))
+   ;("float_of_int", Type.Fun ([Type.Int], Type.Float))
+   ;("int_of_float", Type.Fun ([Type.Float], Type.Int))
+   ;("abs_float", Type.Fun ([Type.Float], Type.Float))
+   ;("sin", Type.Fun ([Type.Float], Type.Float))
+   ;("cos", Type.Fun ([Type.Float], Type.Float))
+   ;("atan", Type.Fun ([Type.Float], Type.Float))
+   ;("sqrt", Type.Fun ([Type.Float], Type.Float))
+   ]
+  M.empty;
   let exp = try
     Parser.exp Lexer.token (Lexing.from_string str)
   with 

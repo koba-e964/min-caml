@@ -152,7 +152,6 @@ let rec g env e = (* 型推論ルーチン (caml2html: typing_g) *)
   with Unify(t1, t2) -> raise (Error(deref_term e, deref_typ t1, deref_typ t2))
 
 let f e =
-  extenv := M.add_list [("int_of_float", Type.Fun ([Type.Float], Type.Int))]M.empty;
 (*
   (match deref_typ (g M.empty e) with
   | Type.Unit -> ()
