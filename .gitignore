@@ -30,4 +30,10 @@ min-rt/*.s
 /min-caml
 /min-caml.top
 libmincaml_stubs.clib
+/Makefile
+/_tags
+setup.data
+setup.ml
+configure
+myocamlbuild.ml
 

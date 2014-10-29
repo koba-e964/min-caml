@@ -7,8 +7,8 @@ License:     BSD3
 Plugins:     META (0.3), DevFiles (0.3)
 
 
-Executable mincaml
-  Path:       .
+Executable "mincaml-llvm"
+  Path:       ./
   BuildTools: ocamlbuild
   BuildDepends: llvm, llvm.executionengine, llvm.analysis, llvm.bitwriter
   CompiledObject: native
