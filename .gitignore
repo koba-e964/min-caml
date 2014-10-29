@@ -18,6 +18,7 @@ parser.ml
 parser.mli
 test/*.s
 test/*.x
+test/*.bc
 min-rt/*.s
 /asm.ml
 /asm.mli

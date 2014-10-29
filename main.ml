@@ -50,11 +50,7 @@ let lexbuf outchan inchan = (* バッファをコンパイルしてチャンネルへ出力する (cam
   print_endline "**** virtual ****";
   print_endline (Asm.show_prog virtual_code);
   let simm = Simm.f virtual_code in
-  print_endline "**** simm ****";
-  print_endline (Asm.show_prog simm);
   let reg = RegAlloc.f simm in
-  print_endline "**** reg-alloc ****";
-  print_endline (Asm.show_prog reg);
   Emit.f outchan !lib reg
 
 let file f = (* ファイルをコンパイルしてファイルに出力する (caml2html: main_file) *)

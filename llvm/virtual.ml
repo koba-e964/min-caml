@@ -211,7 +211,7 @@ module IR = struct
         in
         ignore @@ build_ret (f t fun_ params) builder)
     in
-    dump_value fun_;
+    (* dump_value fun_; *)
     Llvm_analysis.assert_valid_function fun_;
     fun_
 
@@ -251,6 +251,13 @@ module IR = struct
 
   let sub { builder; _ } x y =
     build_sub x y (Id.gentmp Type.Int) builder
+
+  let arith { builder; _} op x y =
+    let bd = match op with
+      | Syntax.AMul -> build_mul
+      | Syntax.ADiv -> build_sdiv
+      in
+    bd x y (Id.gentmp Type.Int) builder
 
   let mul { builder; _ } x y =
     build_mul x y (Id.gentmp Type.Int) builder
@@ -536,6 +543,8 @@ module GenValue = struct
       else
         IR.struct_data ir @@ Array.of_list actual_fv
     in
+    Printf.printf "free vars in %s:\n" name;
+    dump_value fv;
     let cls =
       IR.struct_alloc ir [| f; fv |]
     in
@@ -558,6 +567,8 @@ module GenValue = struct
         IR.add ir (Env.varref x env) (Env.varref y env)
     | Sub (x, y) ->
         IR.sub ir (Env.varref x env) (Env.varref y env)
+    | Arith (op, x, y) ->
+        IR.arith ir op (Env.varref x env) (Env.varref y env)
     | FNeg x ->
         IR.fneg ir (Env.varref x env)
     | FAdd (x, y) ->
@@ -716,7 +727,9 @@ module GenFunction = struct
 (*        Env.defun (string_of_id name) ty fun_ env*)
       in
       (* fv *)
-      GenValue.f (ir, env) body
+      let ret = GenValue.f (ir, env) body in
+	print_string "ret="; dump_value ret; print_endline "";
+    ret
     end
 
   let f (ir, env) ( { Closure.formal_fv; name=(name,_) } as closure) =
