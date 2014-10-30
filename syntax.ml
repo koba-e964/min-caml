@@ -29,7 +29,9 @@ type t = (* MinCamlの構文を表現するデータ型 (caml2html: syntax_t) *)
   | Get of t * t
   | Put of t * t * t
 and fundef = { name : Id.t * Type.t; args : (Id.t * Type.t) list; body : t }
-
+and declare = 
+  | VarDec of Id.t * t
+  | FunDec of fundef
 let rec show_syntax_t (syn : t) : string =
   match syn with
     | Unit -> "()"
@@ -61,6 +63,11 @@ let rec show_syntax_t (syn : t) : string =
 
 and show_fundef f = match f with
   | { name = (id, ty); args = ls; body = body } -> "fundef(" ^ id ^ "," ^ Type.show_type_t ty ^ "" ^ "," ^ show_syntax_t body ^ ")"
+
+let show_library lib = List.fold_left (fun x y -> x ^ "\n" ^ match y with
+   | VarDec (id, exp) -> id ^ " := " ^ show_syntax_t exp
+   | FunDec f         -> show_fundef f
+  ) "library:" lib
 
 exception ErrPos of int * int
 

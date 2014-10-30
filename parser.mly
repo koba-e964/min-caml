@@ -57,6 +57,8 @@ let addtyp x = (x, Type.gentyp ())
 /* 開始記号の定義 */
 %type <Syntax.t> exp
 %start exp
+%type <Syntax.declare list> library
+%start library
 
 %%
 
@@ -188,3 +190,17 @@ pat:
     { $1 @ [addtyp $3] }
 | IDENT COMMA IDENT
     { [addtyp $1; addtyp $3] }
+
+
+library:
+| letdec library
+    { $1 :: $2 }
+| letdec
+    { [$1] }
+
+letdec:
+| LET IDENT EQUAL exp
+    { VarDec ($2, $4) }
+| LET REC fundef
+    { FunDec $3 }
+

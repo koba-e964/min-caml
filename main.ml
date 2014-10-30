@@ -1,5 +1,6 @@
 let limit = ref 1000
-let lib   = ref "libmincaml.txt"
+let asmlib   = ref "libmincaml.txt"
+let glib  = ref ""
 
 let rec iter n e = (* 最適化処理をくりかえす (caml2html: main_iter) *)
   Format.eprintf "iteration %d@." n;
@@ -20,7 +21,6 @@ let read_fully ic : string =
 
 let lexbuf outchan inchan = (* バッファをコンパイルしてチャンネルへ出力する (caml2html: main_lexbuf) *)
   let str = read_fully inchan in
-  Id.counter := 0;
   Typing.extenv := M.add_list
    [("print_int", Type.Fun ([Type.Int], Type.Unit))
    ;("float_of_int", Type.Fun ([Type.Int], Type.Float))
@@ -55,7 +55,17 @@ let lexbuf outchan inchan = (* バッファをコンパイルしてチャンネルへ出力する (cam
   let reg = RegAlloc.f simm in
   print_endline "**** reg-alloc ****";
   print_endline (Asm.show_prog reg);
-  Emit.f outchan !lib reg
+  Emit.f outchan !asmlib reg
+
+let lexbuf_lib outchan inchan = (* parse as library *)
+  let str = read_fully inchan in
+  let lib = try
+    Parser.library Lexer.token (Lexing.from_string str)
+  with 
+    | Syntax.ErrPos (x, y) as e -> Printf.fprintf stderr "parse error at %d-%d, near %s" x y (String.sub str (x-20) (y-x+40)); raise e
+    | e -> print_endline "error:"; raise e
+  in
+  print_endline (Syntax.show_library lib)
 
 let file f = (* ファイルをコンパイルしてファイルに出力する (caml2html: main_file) *)
   let inchan = open_in (f ^ ".ml") in
@@ -66,16 +76,32 @@ let file f = (* ファイルをコンパイルしてファイルに出力する (caml2html: main_file
     close_out outchan;
   with e -> (close_in inchan; close_out outchan; raise e)
 
+(* process library file (.ml) *)
+let glib_process f =
+  let inchan = open_in (f ^ ".ml") in
+  let outchan = open_out (f ^ ".s") in
+  try
+    lexbuf_lib outchan inchan;
+    close_in inchan;
+    close_out outchan;
+  with e -> (close_in inchan; close_out outchan; raise e)
+
+
+
 let () = (* ここからコンパイラの実行が開始される (caml2html: main_entry) *)
   let files = ref [] in
   Arg.parse
     [("-inline", Arg.Int(fun i -> Inline.threshold := i), "maximum size of functions inlined")
     ;("-iter", Arg.Int(fun i -> limit := i), "maximum number of optimizations iterated")
-    ;("-lib", Arg.String(fun i -> lib := i), "path to libmincaml.txt")
+    ;("-lib", Arg.String(fun i -> asmlib := i), "path to libmincaml.txt")
+    ;("-glib", Arg.String(fun i -> glib := i), "path to globals.ml")
     ]
     (fun s -> files := !files @ [s])
     ("Mitou Min-Caml Compiler (C) Eijiro Sumii\n" ^
      Printf.sprintf "usage: %s [-inline m] [-iter n] ...filenames without \".ml\"..." Sys.argv.(0));
+  Id.counter := 0;
+  if !glib <> "" then
+    glib_process !glib;
   List.iter
     (fun f -> ignore (file f))
     !files
