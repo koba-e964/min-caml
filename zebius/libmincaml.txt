@@ -1,6 +1,7 @@
 min_caml_print_int
 	RTS
 
+min_caml_truncate
 min_caml_int_of_float
 	FTRC FR0, FPUL
 	STS FPUL, R0

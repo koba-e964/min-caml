@@ -10,7 +10,8 @@ let classify xts ini addf addi =
       match t with
       | Type.Unit -> acc
       | Type.Float -> addf acc x
-      | _ -> addi acc x t)
+      | Type.Int -> addi acc x t
+      | _ -> Printf.eprintf "warning: invalid type: %sn" (Type.show_type_t t);addi acc x t)
     ini
     xts
 
@@ -45,11 +46,11 @@ let stDF (x, y, z, mul) succ =
   match z with
   | C offset -> 
   let aa = Id.genid "lidx" in
-    Let ((aa, Type.Int), Add (y, C(offset * mul)), seq (St (x, aa), succ))
+    Let ((aa, Type.Int), Add (y, C(offset * mul)), seq (StF (x, aa), succ))
   | V z' ->
   let aa = Id.genid "lidx" in
     let bb = Id.genid "lary" in
-      Let ((aa, Type.Int), Mul (z', mul), Let ((bb, Type.Int), Add (y, V aa), seq (St (x, bb), succ)))
+      Let ((aa, Type.Int), Mul (z', mul), Let ((bb, Type.Int), Add (y, V aa), seq (StF (x, bb), succ)))
    
 
 let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
@@ -138,12 +139,12 @@ let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
           (fun x offset load ->
             if not (S.mem x s) then load else (* [XX] a little ad hoc optimization *)
             let aa = Id.genid "ltidx" in
-            Let ((aa, Type.Int), Add (y, C offset), fletd(x, LdF y, load)))
+            Let ((aa, Type.Int), Add (y, C offset), fletd(x, LdF aa, load)))
           (fun x t offset load ->
             if not (S.mem x s) then load else (* [XX] a little ad hoc optimization *)
             let aa = Id.genid "ltidx" in
             Let ((aa, Type.Int), Add (y, C offset),
-              Let((x, t), Ld y, load))) in
+              Let((x, t), Ld aa, load))) in
       load
   | Closure.Get(x, y) -> (* 配列の読み出し (caml2html: virtual_get) *)
       (match M.find x env with

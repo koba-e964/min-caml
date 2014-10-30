@@ -243,9 +243,9 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       else
 	(if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
 	 Printf.fprintf oc "\tdivsd\t%s, %s\n" z x)
-  | NonTail(x), LdF(y) -> Printf.fprintf oc "\tFMOV\t@%s, %s\n" y x
-  | NonTail(_), StF(x, y) -> Printf.fprintf oc "\tFMOV\t%s, @%s\n" x y
-  | NonTail(_), Comment(s) -> Printf.fprintf oc "\t# %s\n" s
+  | NonTail(x), LdF(y) -> Printf.fprintf oc "\tFMOV.S\t@%s, %s\n" y x
+  | NonTail(_), StF(x, y) -> Printf.fprintf oc "\tFMOV.S\t%s, @%s\n" x y
+  | NonTail(_), Comment(s) -> Printf.fprintf oc "\t; %s\n" s
   (* 退避の仮想命令の実装 (caml2html: emit_save) *)
   | NonTail(_), Save(x, y) when List.mem x allregs && not (S.mem y !stackset) ->
       save y;
