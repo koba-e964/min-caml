@@ -6,9 +6,14 @@ A min-caml compiler whose target is [Zebius](https://github.com/ProcessorCompile
 
 | item | status |
 | --- | --- |
-| compilation of fib | ok? |
-| execution of fib on simulator | no |
-| execution of fib on FPGA | no |
+| compilation of fib | ok |
+| execution of fib on simulator | ok |
+| execution of fib on FPGA | ok |
+| I/O | no |
+| sin, cos | incomplete (not reduced by 2*pi) |
+| atan | no |
+| compilation of *library form* | no |
+| parsing of raytracer | yes |
 | compilation of raytracer | no |
 | execution of raytracer on simulator | no |
 | execution of raytracer on FPGA | no |
