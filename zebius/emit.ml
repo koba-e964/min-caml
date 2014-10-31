@@ -2,9 +2,6 @@ open Asm
 
 (* NOTE: This code assumes that R14,R13,R12 are temporary registers. *)
 
-external gethi : float -> int32 = "gethi"
-external getlo : float -> int32 = "getlo"
-
 let is_reg_g str = str.[0] = 'R'
 
 let stackset = ref S.empty (* すでにSaveされた変数の集合 (caml2html: emit_stackset) *)
