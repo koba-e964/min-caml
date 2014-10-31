@@ -11,7 +11,7 @@ let classify xts ini addf addi =
       | Type.Unit -> acc
       | Type.Float -> addf acc x
       | Type.Int -> addi acc x t
-      | _ -> Printf.eprintf "warning: invalid type: %sn" (Type.show_type_t t);addi acc x t)
+      | _ -> addi acc x t) (* closures *)
     ini
     xts
 
