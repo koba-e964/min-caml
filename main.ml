@@ -1,6 +1,7 @@
 let limit = ref 1000
 let asmlib   = ref "libmincaml.txt"
 let glib  = ref ""
+let verbose = ref false
 
 let rec iter n e = (* 最適化処理をくりかえす (caml2html: main_iter) *)
   Format.eprintf "iteration %d@." n;
@@ -38,23 +39,35 @@ let lexbuf outchan inchan = (* バッファをコンパイルしてチャンネルへ出力する (cam
     | Syntax.ErrPos (x, y) as e -> Printf.fprintf stderr "parse error at %d-%d, near %s" x y (String.sub str (x-20) (y-x+40)); raise e
     | e -> print_endline "error:"; raise e
   in
-  print_endline "**** expr ****";
-  print_endline (Syntax.show_syntax_t exp);
+  if !verbose then begin
+    print_endline "**** expr ****";
+    print_endline (Syntax.show_syntax_t exp);
+  end;
   let normalized = KNormal.f (Typing.f exp) in
-  print_endline "**** normalized ****";
-  print_endline (KNormal.show_knormal_t normalized);
+  if !verbose then begin
+    print_endline "**** normalized ****";
+    print_endline (KNormal.show_knormal_t normalized);
+  end;
   let rr = (Closure.f (iter !limit (Alpha.f normalized))) in
-  print_endline "**** closure-trans ****";
-  print_endline (Closure.show_prog rr);
+  if !verbose then begin
+    print_endline "**** closure-trans ****";
+    print_endline (Closure.show_prog rr);
+  end;
   let virtual_code = Virtual.f rr in
-  print_endline "**** virtual ****";
-  print_endline (Asm.show_prog virtual_code);
+  if !verbose then begin
+    print_endline "**** virtual ****";
+    print_endline (Asm.show_prog virtual_code);
+  end;
   let simm = Simm.f virtual_code in
-  print_endline "**** simm ****";
-  print_endline (Asm.show_prog simm);
+  if !verbose then begin
+    print_endline "**** simm ****";
+    print_endline (Asm.show_prog simm);
+  end;
   let reg = RegAlloc.f simm in
-  print_endline "**** reg-alloc ****";
-  print_endline (Asm.show_prog reg);
+  if !verbose then begin
+    print_endline "**** reg-alloc ****";
+    print_endline (Asm.show_prog reg);
+  end;
   Emit.f outchan !asmlib reg
 
 let lexbuf_lib outchan inchan = (* parse as library *)
@@ -95,6 +108,7 @@ let () = (* ここからコンパイラの実行が開始される (caml2html: main_entry) *)
     ;("-iter", Arg.Int(fun i -> limit := i), "maximum number of optimizations iterated")
     ;("-lib", Arg.String(fun i -> asmlib := i), "path to libmincaml.txt")
     ;("-glib", Arg.String(fun i -> glib := i), "path to globals.ml")
+    ;("-v", Arg.Unit(fun () -> verbose := true), "verbose information")
     ]
     (fun s -> files := !files @ [s])
     ("Mitou Min-Caml Compiler (C) Eijiro Sumii\n" ^
