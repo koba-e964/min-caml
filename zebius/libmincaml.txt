@@ -28,6 +28,27 @@ min_caml_sqrt
 	AND R0, R0
 
 min_caml_sin	; sin(x) = x
+	FMOV FR0, FR1
+	FLDI1 FR2
+	FLDI1 FR3
+	FLDI0 FR4 ; sum = 0
+	FMOV FR0, FR5 ; cur = x
+	FMUL FR1, FR1 ; x*x
+	MOV #31, R0 ; cnt
+	MOV #0, R1 
+.mcs0
+	FADD FR5, FR4 ; sum += cur
+	FADD FR3, FR2 ; div += 1.0
+	FMUL FR1, FR5 ; cur *= x * x
+	FDIV FR2, FR5 ; cur = cur / div
+	FADD FR3, FR2 ; div += 1.0
+	FDIV FR2, FR5 ; cur = cur / div
+	FNEG FR5      ; cur = -cur
+	ADD #-1, R0   ; cnt--
+	CMP/GT R1, R0
+	BT .mcs0  ; if cnt > 0 then goto .mcs0
+
+	FMOV FR4, FR0
 	RTS
 	AND R0, R0
 
