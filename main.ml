@@ -81,14 +81,14 @@ let emit_code outchan vardecs fundecs (clexp : Closure.t) : unit =
 
 (* Processes a function declaration and adds it to fundecs.
    This is a very *ugly* code, so it should be rewritten. *)
-let process_fundec vardecs fundecs ({ Syntax.name = (id, _) ; Syntax.args; Syntax.body = exp } as fd) : unit =
+let process_fundec vardecs fundecs ({ Syntax.name = (id, _) ; Syntax.args; Syntax.body } as fd) : unit =
   let wrap_exp = Syntax.LetRec (fd, Syntax.Var id) in
-  let (_normalized_discarded, ty) = KNormal.g M.empty (Typing.f wrap_exp false) in
-  print_endline ("inferred type:" ^ Type.show_type_t ty);
+  let (exp, ty) = Typing.f_withtype wrap_exp false in
   Typing.extenv := M.add id ty !Typing.extenv;
   let dummy = "__dummy_unused_identifier_for_process_fundec" in
   let wrap_exp2 = Syntax.LetRec ({ fd with name = (dummy, Type.gentyp ())}, Syntax.Var dummy) in
-  let (normalized, _ty_discarded) = KNormal.g M.empty (Typing.f wrap_exp2 false) in
+  let exp = Typing.f wrap_exp2 false in
+  let normalized = KNormal.f exp in
   if !verbose then begin
     print_endline "**** normalized ****";
     print_endline (KNormal.show_knormal_t normalized);
@@ -108,7 +108,8 @@ let process_fundec vardecs fundecs ({ Syntax.name = (id, _) ; Syntax.args; Synta
 
 
 let process_exp vardec fundec exp =
-  let (normalized, ty) = KNormal.g M.empty (Typing.f exp false) in
+  let (exp, ty) = Typing.f_withtype exp false in
+  let normalized = KNormal.f exp in
   if !verbose then begin
     print_endline "**** normalized ****";
     print_endline (KNormal.show_knormal_t normalized);

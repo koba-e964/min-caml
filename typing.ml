@@ -3,7 +3,7 @@
 open Syntax
 
 exception Unify of Type.t * Type.t
-exception Error of t * Type.t * Type.t
+exception Error of t * t * Type.t * Type.t
 
 let extenv = ref M.empty
 
@@ -149,7 +149,7 @@ let rec g env e = (* 型推論ルーチン (caml2html: typing_g) *)
 	unify (Type.Array(t)) (g env e1);
 	unify Type.Int (g env e2);
 	Type.Unit
-  with Unify(t1, t2) -> raise (Error(deref_term e, deref_typ t1, deref_typ t2))
+  with Unify(t1, t2) -> begin print_endline (show_syntax_t e ^ " " ^ Type.show_type_t t1 ^ " " ^ Type.show_type_t t2); raise (Error(e, deref_term e, deref_typ t1, deref_typ t2)) end
 
 let f e (unittest : bool) =
 (*
@@ -163,3 +163,17 @@ let f e (unittest : bool) =
       with Unify _ -> Format.eprintf (* failwith *) "top level does not have type unit");
   extenv := M.map deref_typ !extenv;
   deref_term e
+
+let f_withtype e (unittest : bool) =
+(*
+  (match deref_typ (g M.empty e) with
+  | Type.Unit -> ()
+  | _ -> Format.eprintf "warning: final result does not have type unit@.");
+*)
+  let ty = g M.empty e in
+  if unittest then
+    (try unify Type.Unit ty
+      with Unify _ -> Format.eprintf (* failwith *) "top level does not have type unit");
+  extenv := M.map deref_typ !extenv;
+  (deref_term e, deref_typ ty)
+
