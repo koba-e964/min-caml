@@ -32,7 +32,7 @@ let lexbuf outchan inchan = (* バッファをコンパイルしてチャンネルへ出力する (cam
     print_endline "**** expr ****";
     print_endline (Syntax.show_syntax_t exp);
   end;
-  let normalized = KNormal.f (Typing.f exp) in
+  let normalized = KNormal.f (Typing.f exp true) in
   if !verbose then begin
     print_endline "**** normalized ****";
     print_endline (KNormal.show_knormal_t normalized);
@@ -83,12 +83,12 @@ let emit_code outchan vardecs fundecs (clexp : Closure.t) : unit =
    This is a very *ugly* code, so it should be rewritten. *)
 let process_fundec vardecs fundecs ({ Syntax.name = (id, _) ; Syntax.args; Syntax.body = exp } as fd) : unit =
   let wrap_exp = Syntax.LetRec (fd, Syntax.Var id) in
-  let (_normalized_discarded, ty) = KNormal.g M.empty (Typing.f wrap_exp) in
+  let (_normalized_discarded, ty) = KNormal.g M.empty (Typing.f wrap_exp false) in
   print_endline ("inferred type:" ^ Type.show_type_t ty);
   Typing.extenv := M.add id ty !Typing.extenv;
   let dummy = "__dummy_unused_identifier_for_process_fundec" in
   let wrap_exp2 = Syntax.LetRec ({ fd with name = (dummy, Type.gentyp ())}, Syntax.Var dummy) in
-  let (normalized, _ty_discarded) = KNormal.g M.empty (Typing.f wrap_exp2) in
+  let (normalized, _ty_discarded) = KNormal.g M.empty (Typing.f wrap_exp2 false) in
   if !verbose then begin
     print_endline "**** normalized ****";
     print_endline (KNormal.show_knormal_t normalized);
@@ -108,7 +108,7 @@ let process_fundec vardecs fundecs ({ Syntax.name = (id, _) ; Syntax.args; Synta
 
 
 let process_exp vardec fundec exp =
-  let (normalized, ty) = KNormal.g (M.empty) (Typing.f exp) in
+  let (normalized, ty) = KNormal.g M.empty (Typing.f exp false) in
   if !verbose then begin
     print_endline "**** normalized ****";
     print_endline (KNormal.show_knormal_t normalized);

@@ -151,13 +151,15 @@ let rec g env e = (* 型推論ルーチン (caml2html: typing_g) *)
 	Type.Unit
   with Unify(t1, t2) -> raise (Error(deref_term e, deref_typ t1, deref_typ t2))
 
-let f e =
+let f e (unittest : bool) =
 (*
   (match deref_typ (g M.empty e) with
   | Type.Unit -> ()
   | _ -> Format.eprintf "warning: final result does not have type unit@.");
 *)
-  (try unify Type.Unit (g M.empty e)
-  with Unify _ -> Format.eprintf (* failwith *) "top level does not have type unit");
+  let ty = g M.empty e in
+  if unittest then
+    (try unify Type.Unit ty
+      with Unify _ -> Format.eprintf (* failwith *) "top level does not have type unit");
   extenv := M.map deref_typ !extenv;
   deref_term e
