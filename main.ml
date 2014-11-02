@@ -61,7 +61,7 @@ let lexbuf outchan inchan = (* バッファをコンパイルしてチャンネルへ出力する (cam
 
 (* currently, vardecs are just ignored. *)
 let emit_code outchan vardecs fundecs (clexp : Closure.t) : unit =
-  let virtual_code = Virtual.f (Prog (fundecs, clexp)) in
+  let virtual_code = Virtual.f (Closure.Prog (fundecs, clexp)) in
   if !verbose then begin
     print_endline "**** virtual ****";
     print_endline (Asm.show_prog virtual_code);
