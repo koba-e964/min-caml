@@ -59,6 +59,54 @@ let lexbuf outchan inchan = (* バッファをコンパイルしてチャンネルへ出力する (cam
   end;
   Emit.f outchan !asmlib reg
 
+(* currently, vardecs are just ignored. *)
+let emit_code outchan vardecs fundecs (clexp : Closure.t) : unit =
+  let virtual_code = Virtual.f (Prog (fundecs, clexp)) in
+  if !verbose then begin
+    print_endline "**** virtual ****";
+    print_endline (Asm.show_prog virtual_code);
+  end;
+  let simm = Simm.f virtual_code in
+  if !verbose then begin
+    print_endline "**** simm ****";
+    print_endline (Asm.show_prog simm);
+  end;
+  let reg = RegAlloc.f simm in
+  if !verbose then begin
+    print_endline "**** reg-alloc ****";
+    print_endline (Asm.show_prog reg);
+  end;
+  Emit.f outchan !asmlib reg
+
+
+(* Processes a function declaration and adds it to fundecs.
+   This is a very *ugly* code, so it should be rewritten. *)
+let process_fundec vardecs fundecs ({ Syntax.name = (id, _) ; Syntax.args; Syntax.body = exp } as fd) : unit =
+  let wrap_exp = Syntax.LetRec (fd, Syntax.Var id) in
+  let (_normalized_discarded, ty) = KNormal.g M.empty (Typing.f wrap_exp) in
+  print_endline ("inferred type:" ^ Type.show_type_t ty);
+  Typing.extenv := M.add id ty !Typing.extenv;
+  let dummy = "__dummy_unused_identifier_for_process_fundec" in
+  let wrap_exp2 = Syntax.LetRec ({ fd with name = (dummy, Type.gentyp ())}, Syntax.Var dummy) in
+  let (normalized, _ty_discarded) = KNormal.g M.empty (Typing.f wrap_exp2) in
+  if !verbose then begin
+    print_endline "**** normalized ****";
+    print_endline (KNormal.show_knormal_t normalized);
+  end;
+  let rr = (Closure.f (iter !limit (Alpha.f normalized))) in
+  if !verbose then begin
+    print_endline "**** closure-trans ****";
+    print_endline (Closure.show_prog rr);
+  end;
+    print_endline "**** closure-trans ****";
+    print_endline (Closure.show_prog rr);
+  let Closure.Prog (fundefs, Closure.MakeCls ((uniq_name, _), _, _)) = rr in
+  (* Add "min_caml_" to the head of function name. That is in order to call them as external functions. *)
+  let newfundefs = List.map (fun ({ Closure.name = (Id.L n, ty) } as f) -> if n = uniq_name then { f with 
+     Closure.name = (Id.L ("min_caml_" ^ id), ty)} else f) fundefs in
+  fundecs := !fundecs @ newfundefs
+
+
 let process_exp vardec fundec exp =
   let (normalized, ty) = KNormal.g (M.empty) (Typing.f exp) in
   if !verbose then begin
@@ -71,6 +119,7 @@ let process_exp vardec fundec exp =
     print_endline (Closure.show_prog rr);
   end;
   let Closure.Prog (fundefs, clexp) = rr in
+  fundec := !fundec @ fundefs;
   (clexp, ty)
 
 (* processes one declaration *)
@@ -79,13 +128,21 @@ let process_declare (vardec : Closure.vardef list ref) (fundec : Closure.fundef 
   | Syntax.VarDec (id, exp) ->
     let (cl, ty) = process_exp vardec fundec exp in
     Typing.extenv := M.add id ty !Typing.extenv;
-    vardec := { vname = (Id.L id, ty); vbody = cl } :: !vardec;
-  | FunDec ({ name = (id, _) ; args; body = exp } as fd) -> 
-    let cover_exp = Syntax.LetRec (fd, Var id) in
-    let (cl, ty) = process_exp vardec fundec cover_exp in
-    Typing.extenv := M.add id ty !Typing.extenv
+    vardec := { Closure.vname = (Id.L id, ty); Closure.vbody = cl } :: !vardec;
+  | Syntax.FunDec ({ Syntax.name = (id, _) ; Syntax.args; Syntax.body = exp } as fd) -> 
+    process_fundec vardec fundec fd
 
-let lexbuf_lib inchan : Closure.vardef list * Closure.fundef list = (* parse as library *)
+let lexbuf_main inchan vardecs fundecs : Closure.t =
+  let str = read_fully inchan in
+  let exp = try
+    Parser.exp Lexer.token (Lexing.from_string str)
+  with 
+    | Syntax.ErrPos (x, y) as e -> Printf.fprintf stderr "parse error at %d-%d, near %s" x y (String.sub str (x-20) (y-x+40)); raise e
+    | e -> print_endline "error:"; raise e
+  in
+  fst (process_exp vardecs fundecs exp)
+
+let lexbuf_lib inchan (vardec : Closure.vardef list ref) (fundec : Closure.fundef list ref) : unit = (* parse as library *)
   let str = read_fully inchan in
   let lib = try
     Parser.library Lexer.token (Lexing.from_string str)
@@ -94,25 +151,23 @@ let lexbuf_lib inchan : Closure.vardef list * Closure.fundef list = (* parse as 
     | e -> print_endline "error:"; raise e
   in
   print_endline (Syntax.show_library lib);
-  let vardec = ref [] in
-  let fundec = ref [] in
-  List.map (process_declare vardec fundec) lib;
-  (!vardec, !fundec)
+  List.iter (process_declare vardec fundec) lib
 
-let file f = (* ファイルをコンパイルしてファイルに出力する (caml2html: main_file) *)
+let file f vardec fundec = (* ファイルをコンパイルしてファイルに出力する (caml2html: main_file) *)
   let inchan = open_in (f ^ ".ml") in
   let outchan = open_out (f ^ ".s") in
   try
-    lexbuf outchan inchan;
+    let clexp = lexbuf_main inchan vardec fundec in
+    emit_code outchan !vardec !fundec clexp;
     close_in inchan;
     close_out outchan;
   with e -> (close_in inchan; close_out outchan; raise e)
 
 (* process library file (.ml) *)
-let glib_process f =
+let glib_process f vardecs fundecs =
   let inchan = open_in (f ^ ".ml") in
   try
-    lexbuf_lib inchan;
+    lexbuf_lib inchan vardecs fundecs;
     close_in inchan;
   with e -> (close_in inchan; raise e)
 
@@ -142,8 +197,10 @@ let () = (* ここからコンパイラの実行が開始される (caml2html: main_entry) *)
    ;("sqrt", Type.Fun ([Type.Float], Type.Float))
    ]
   M.empty;
+  let vardec = ref [] in
+  let fundec = ref [] in
   if !glib <> "" then
-    glib_process !glib;
+    glib_process !glib vardec fundec;
   List.iter
-    (fun f -> ignore (file f))
+    (fun f -> ignore (file f vardec fundec))
     !files

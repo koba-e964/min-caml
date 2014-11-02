@@ -15,7 +15,7 @@ let rec show_type_t (ty : t) = match ty with
   | Bool -> "bool"
   | Int  -> "int"
   | Float -> "float"
-  | Fun (ls, ty) -> "(" ^ List.fold_left (fun x y -> x ^ show_type_t y ^ ",") "" ls ^ "->" ^ show_type_t ty ^ ")"
+  | Fun (ls, ty) -> "(" ^ List.fold_left (fun x y -> x ^ show_type_t y ^ "*") "" ls ^ "->" ^ show_type_t ty ^ ")"
   | Tuple ls -> "(" ^ List.fold_left (fun x y -> x ^ show_type_t y ^ ",") "" ls ^ ")"
   | Array ty -> "array(" ^ show_type_t ty ^ ")"
   | Var t  -> "type_var"
