@@ -86,7 +86,7 @@ let process_fundec vardecs fundecs ({ Syntax.name = (id, _) ; Syntax.args; Synta
   let (exp, ty) = Typing.f_withtype wrap_exp false in
   Typing.extenv := M.add id ty !Typing.extenv;
   let dummy = "__dummy_unused_identifier_for_process_fundec" in
-  let wrap_exp2 = Syntax.LetRec ({ fd with name = (dummy, Type.gentyp ())}, Syntax.Var dummy) in
+  let wrap_exp2 = Syntax.LetRec ({ fd with Syntax.name = (dummy, Type.gentyp ())}, Syntax.Var dummy) in
   let exp = Typing.f wrap_exp2 false in
   let normalized = KNormal.f exp in
   if !verbose then begin
