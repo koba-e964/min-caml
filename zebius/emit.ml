@@ -389,7 +389,8 @@ let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
   Printf.fprintf oc "\tADD\t#4, R15\n"; (* room for return address *)
   g oc (Tail, e)
 
-let f oc lib (Prog(data, fundefs, e)) =
+(* vardefs are currently ignored *)
+let f oc lib (Prog(data, vardefs, fundefs, e)) =
   Format.eprintf "generating assembly...@.";
   Printf.fprintf oc "\tMOV #1, R15\n";
   Printf.fprintf oc "\tMOV #15, R14\n";

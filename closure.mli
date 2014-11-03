@@ -29,8 +29,11 @@ type fundef = { name : Id.l * Type.t;
 		formal_fv : (Id.t * Type.t) list;
 		body : t }
 type vardef = { vname : Id.l * Type.t; vbody : t }
-type prog = Prog of fundef list * t
+type prog = Prog of vardef list * fundef list * t
 
 val fv : t -> S.t
-val f : KNormal.t -> prog
+val f : KNormal.t -> fundef list * t
+val show_closure_t : t -> string
+val show_fundef : fundef -> string
 val show_prog : prog -> string
+

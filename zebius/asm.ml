@@ -36,9 +36,10 @@ and exp = (* 一つ一つの命令に対応する式 (caml2html: sparcasm_exp) *)
   | CallDir of Id.l * Id.t list * Id.t list
   | Save of Id.t * Id.t (* レジスタ変数の値をスタック変数へ保存 (caml2html: sparcasm_save) *)
   | Restore of Id.t (* スタック変数から値を復元 (caml2html: sparcasm_restore) *)
+type vardef = { vname : Id.l; vtype : Type.t; vbody : t }
 type fundef = { name : Id.l; args : Id.t list; fargs : Id.t list; body : t; ret : Type.t }
 (* プログラム全体 = 浮動小数点数テーブル + トップレベル関数 + メインの式 (caml2html: sparcasm_prog) *)
-type prog = Prog of (Id.l * float) list * fundef list * t
+type prog = Prog of (Id.l * float) list * vardef list * fundef list * t
 
 let fletd(x, e1, e2) = Let((x, Type.Float), e1, e2)
 let seq(e1, e2) = Let((Id.gentmp Type.Unit, Type.Unit), e1, e2)
@@ -126,8 +127,10 @@ and show_exp x = match x with
   | CallDir (Id.L idl, ls1, ls2) -> "call_dir " ^ idl ^ List.fold_left (fun x y -> x ^ "," ^ y) "" (ls1 @ ls2)
   | Save (id1, id2) -> "save " ^ id1 ^ ", " ^ id2
   | Restore id -> "restore " ^ id
+and show_vardef { vname = Id.L n; vtype = ty; vbody = exp } =
+  "vardef " ^ n ^ " : " ^ Type.show_type_t ty ^ " :=\n" ^ show_asm_t exp ^ "\n"
 and show_fundef f = match f with
   | { name = Id.L id; args = ls; fargs; body; ret } -> "fundef " ^ id ^ "(" ^ string_of_list (ls @ fargs) ^ ") : "  ^ Type.show_type_t ret ^ " {\n" ^ show_asm_t body ^ "\n}"
-let show_prog (Prog (ls, fundefs, t)) = 
+let show_prog (Prog (ls, vardefs, fundefs, t)) = 
   List.fold_left (fun x y -> x ^ show_fundef y ^ "\n") "" fundefs ^ show_asm_t t
 

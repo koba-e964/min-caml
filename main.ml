@@ -20,48 +20,9 @@ let read_fully ic : string =
   with End_of_file -> !lines
  
 
-let lexbuf outchan inchan = (* バッファをコンパイルしてチャンネルへ出力する (caml2html: main_lexbuf) *)
-  let str = read_fully inchan in
-  let exp = try
-    Parser.exp Lexer.token (Lexing.from_string str)
-  with 
-    | Syntax.ErrPos (x, y) as e -> Printf.fprintf stderr "parse error at %d-%d, near %s" x y (String.sub str (x-20) (y-x+40)); raise e
-    | e -> print_endline "error:"; raise e
-  in
-  if !verbose then begin
-    print_endline "**** expr ****";
-    print_endline (Syntax.show_syntax_t exp);
-  end;
-  let normalized = KNormal.f (Typing.f exp true) in
-  if !verbose then begin
-    print_endline "**** normalized ****";
-    print_endline (KNormal.show_knormal_t normalized);
-  end;
-  let rr = (Closure.f (iter !limit (Alpha.f normalized))) in
-  if !verbose then begin
-    print_endline "**** closure-trans ****";
-    print_endline (Closure.show_prog rr);
-  end;
-  let virtual_code = Virtual.f rr in
-  if !verbose then begin
-    print_endline "**** virtual ****";
-    print_endline (Asm.show_prog virtual_code);
-  end;
-  let simm = Simm.f virtual_code in
-  if !verbose then begin
-    print_endline "**** simm ****";
-    print_endline (Asm.show_prog simm);
-  end;
-  let reg = RegAlloc.f simm in
-  if !verbose then begin
-    print_endline "**** reg-alloc ****";
-    print_endline (Asm.show_prog reg);
-  end;
-  Emit.f outchan !asmlib reg
-
 (* currently, vardecs are just ignored. *)
 let emit_code outchan vardecs fundecs (clexp : Closure.t) : unit =
-  let virtual_code = Virtual.f (Closure.Prog (fundecs, clexp)) in
+  let virtual_code = Virtual.f (Closure.Prog (vardecs, fundecs, clexp)) in
   if !verbose then begin
     print_endline "**** virtual ****";
     print_endline (Asm.show_prog virtual_code);
@@ -94,13 +55,7 @@ let process_fundec vardecs fundecs ({ Syntax.name = (id, _) ; Syntax.args; Synta
     print_endline (KNormal.show_knormal_t normalized);
   end;
   let rr = (Closure.f (iter !limit (Alpha.f normalized))) in
-  if !verbose then begin
-    print_endline "**** closure-trans ****";
-    print_endline (Closure.show_prog rr);
-  end;
-    print_endline "**** closure-trans ****";
-    print_endline (Closure.show_prog rr);
-  let Closure.Prog (fundefs, Closure.MakeCls ((uniq_name, _), _, _)) = rr in
+  let (fundefs, Closure.MakeCls ((uniq_name, _), _, _)) = rr in
   (* Add "min_caml_" to the head of function name. That is in order to call them as external functions. *)
   let newfundefs = List.map (fun ({ Closure.name = (Id.L n, ty) } as f) -> if n = uniq_name then { f with 
      Closure.name = (Id.L ("min_caml_" ^ id), ty)} else f) fundefs in
@@ -114,12 +69,11 @@ let process_exp vardec fundec exp =
     print_endline "**** normalized ****";
     print_endline (KNormal.show_knormal_t normalized);
   end;
-  let rr = (Closure.f (iter !limit (Alpha.f normalized))) in
+  let (fundefs, clexp) = (Closure.f (iter !limit (Alpha.f normalized))) in
   if !verbose then begin
     print_endline "**** closure-trans ****";
-    print_endline (Closure.show_prog rr);
+    print_endline (List.fold_left (fun x y -> x ^ Closure.show_fundef y ^ "\n") "" fundefs ^ Closure.show_closure_t clexp);
   end;
-  let Closure.Prog (fundefs, clexp) = rr in
   fundec := !fundec @ fundefs;
   (clexp, ty)
 

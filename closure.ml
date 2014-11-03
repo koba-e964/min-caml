@@ -29,7 +29,7 @@ type fundef = { name : Id.l * Type.t;
 		formal_fv : (Id.t * Type.t) list;
 		body : t }
 type vardef = { vname : Id.l * Type.t; vbody : t }
-type prog = Prog of fundef list * t
+type prog = Prog of vardef list * fundef list * t
 
 let rec fv = function
   | Unit | Int(_) | Float(_) | ExtArray(_) -> S.empty
@@ -106,7 +106,7 @@ let rec g env known = function (* クロージャ変換ルーチン本体 (caml2html: closure
 let f e =
   toplevel := [];
   let e' = g M.empty S.empty e in
-  Prog(List.rev !toplevel, e')
+  (List.rev !toplevel, e')
 
 let rec show_closure_t (syn : t) : string = 
   match syn with
@@ -141,5 +141,5 @@ and show_closure clos : string = match clos with
 
 
 let show_prog prog : string = match prog with
-  | Prog (fundefs, exp) -> List.fold_left (fun x y -> x ^ show_fundef y ^ "\n") "" fundefs ^ show_closure_t exp
+  | Prog (vardefs, fundefs, exp) -> List.fold_left (fun x y -> x ^ show_fundef y ^ "\n") "" fundefs ^ show_closure_t exp
 

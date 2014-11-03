@@ -180,9 +180,14 @@ let h { Closure.name = (Id.L(x), t); Closure.args = yts; Closure.formal_fv = zts
       { name = Id.L(x); args = int; fargs = float; body = load; ret = t2 }
   | _ -> assert false
 
+let generate_var { Closure.vname = (x, ty); Closure.vbody = expr } =
+  { vname = x; vtype = ty; vbody = g M.empty expr }
+ 
+
 (* プログラム全体の仮想マシンコード生成 (caml2html: virtual_f) *)
-let f (Closure.Prog(fundefs, e)) =
+let f (Closure.Prog(vardefs, fundefs, e)) =
   data := [];
+  let vardefs = List.map generate_var vardefs in
   let fundefs = List.map h fundefs in
   let e = g M.empty e in
-  Prog(!data, fundefs, e)
+  Prog(!data, vardefs, fundefs, e)
