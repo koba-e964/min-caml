@@ -22,7 +22,7 @@ let locate x =
     | y :: zs when x = y -> 0 :: List.map succ (loc zs)
     | y :: zs -> List.map succ (loc zs) in
   loc !stackmap
-let offset x = 4 * List.hd (locate x)
+let offset x = let l = locate x in if l = [] then failwith ("offset of " ^ x ^ " is not defined: stackmap = " ^ List.fold_left (fun x y -> x ^ " " ^ y) "" !stackmap) else 4 * List.hd l (* TODO ad-hoc modification, should be fixed  FIXME *)
 let stacksize () = align (List.length !stackmap * 4)
 
 let pp_id_or_imm = function
@@ -203,8 +203,8 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   | NonTail(x), Mul(y, z) -> if z == 2 then (mov_labelref_or_reg oc y x; add_id oc x x)
     else failwith ("invalid mul imm: " ^ string_of_int z)
   | NonTail(x), Div(y, z) -> failwith ("invalid div imm: " ^ string_of_int z)
-  | NonTail(x), Ld(y) -> Printf.fprintf oc "\tMOV\t@%s, %s\n" y x
-  | NonTail(_), St(x, y) -> Printf.fprintf oc "\tMOV\t%s, @%s\n" x y
+  | NonTail(x), Ld(y) -> Printf.fprintf oc "\tMOV.L\t@%s, %s\n" y x
+  | NonTail(_), St(x, y) -> Printf.fprintf oc "\tMOV.L\t%s, @%s\n" x y
   | NonTail(x), FMovD(y) ->
       if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x
   | NonTail(x), FNegD(y) ->
@@ -389,6 +389,22 @@ let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
   Printf.fprintf oc "\tADD\t#4, R15\n"; (* room for return address *)
   g oc (Tail, e)
 
+(* TODO type is ignored, and this doesn't work correctly unless ty = int, bool, float. *)
+let emit_var oc { vname = Id.L x; vtype = ty; vbody = exp } =
+  Printf.fprintf oc ".%s_init\n" x;
+  stackset := S.empty;
+  stackmap := [];
+  Printf.fprintf oc "\tSTS\tPR, R14\n"; 
+  Printf.fprintf oc "\tMOV.L\tR14, @R15\n"; 
+  Printf.fprintf oc "\tADD\t#4, R15\n"; (* room for return address *)
+  g oc (NonTail (regs.(0)), exp);
+  mov_label oc ("min_caml_" ^ x) "R14";
+  Printf.fprintf oc "\tMOV.L\tR0, @R14\n";
+  rts oc;
+  Printf.fprintf oc "\t.align\n";
+  Printf.fprintf oc "min_caml_%s\n" x;
+  Printf.fprintf oc "\t.data.l #314159265\n"
+
 (* vardefs are currently ignored *)
 let f oc lib (Prog(data, vardefs, fundefs, e)) =
   Format.eprintf "generating assembly...@.";
@@ -398,6 +414,7 @@ let f oc lib (Prog(data, vardefs, fundefs, e)) =
   g oc (NonTail(regs.(0)), e);
   Printf.fprintf oc "\tBRA\t.end\n";
   List.iter (fun fundef -> h oc fundef) fundefs;
+  List.iter (emit_var oc) vardefs;
   stackset := S.empty;
   stackmap := [];
   let ic = open_in lib in

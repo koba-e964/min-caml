@@ -132,5 +132,5 @@ and show_vardef { vname = Id.L n; vtype = ty; vbody = exp } =
 and show_fundef f = match f with
   | { name = Id.L id; args = ls; fargs; body; ret } -> "fundef " ^ id ^ "(" ^ string_of_list (ls @ fargs) ^ ") : "  ^ Type.show_type_t ret ^ " {\n" ^ show_asm_t body ^ "\n}"
 let show_prog (Prog (ls, vardefs, fundefs, t)) = 
-  List.fold_left (fun x y -> x ^ show_fundef y ^ "\n") "" fundefs ^ show_asm_t t
+  List.fold_left (fun x y -> x ^ show_fundef y ^ "\n") (List.fold_left (fun x y -> x ^ show_vardef y ^ "\n") "" vardefs) fundefs ^ show_asm_t t
 

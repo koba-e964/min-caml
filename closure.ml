@@ -24,6 +24,7 @@ type t = (* クロージャ変換後の式 (caml2html: closure_t) *)
   | Get of Id.t * Id.t
   | Put of Id.t * Id.t * Id.t
   | ExtArray of Id.l
+  | ExtVar of Id.l * Type.t
 type fundef = { name : Id.l * Type.t;
 		args : (Id.t * Type.t) list;
 		formal_fv : (Id.t * Type.t) list;
@@ -32,7 +33,7 @@ type vardef = { vname : Id.l * Type.t; vbody : t }
 type prog = Prog of vardef list * fundef list * t
 
 let rec fv = function
-  | Unit | Int(_) | Float(_) | ExtArray(_) -> S.empty
+  | Unit | Int(_) | Float(_) | ExtArray(_) | ExtVar _ -> S.empty
   | Neg(x) | FNeg(x) -> S.singleton x
   | Add(x, y) | Sub(x, y) | Arith (_, x, y) | FAdd(x, y) | FSub(x, y) | FMul(x, y) | FDiv(x, y) | Get(x, y) -> S.of_list [x; y]
   | IfEq(x, y, e1, e2)| IfLE(x, y, e1, e2) -> S.add x (S.add y (S.union (fv e1) (fv e2)))
@@ -101,6 +102,7 @@ let rec g env known = function (* クロージャ変換ルーチン本体 (caml2html: closure
   | KNormal.Get(x, y) -> Get(x, y)
   | KNormal.Put(x, y, z) -> Put(x, y, z)
   | KNormal.ExtArray(x) -> ExtArray(Id.L(x))
+  | KNormal.ExtVar (x,ty) -> ExtVar(Id.L(x), ty)
   | KNormal.ExtFunApp(x, ys) -> AppDir(Id.L("min_caml_" ^ x), ys)
 
 let f e =
@@ -134,6 +136,7 @@ let rec show_closure_t (syn : t) : string =
     | Get (x, y) -> "get(" ^ x ^ ", " ^ y ^ ")"
     | Put (x, y, z) -> "put(" ^ x ^ ", " ^ y ^ "," ^ z ^ ")"
     | ExtArray (Id.L x) -> "ext_array(" ^ x ^ ")"
+    | ExtVar (Id.L x, _) -> "ext_var(" ^ x ^ ")"
 and show_fundef f = match f with
   | { name = (Id.L id, ty); args = ls; body = body } -> "fundef(" ^ id ^ "," ^ Type.show_type_t ty ^ "" ^ "," ^ show_closure_t body ^ ")"
 and show_closure clos : string = match clos with

@@ -161,6 +161,9 @@ let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
       | Type.Array(_) -> st(z, x, V(y), 4) (Ans Nop)
       | _ -> assert false)
   | Closure.ExtArray(Id.L(x)) -> Ans(SetL(Id.L("min_caml_" ^ x)))
+  | Closure.ExtVar(Id.L(x), ty) ->
+    let uniq = Id.genid "ext_var" in
+    Let ((uniq, ty), (SetL (Id.L ("min_caml_" ^ x))), Ans (Ld uniq)) (* TODO this only works if type = int, bool, float *)
 
 (* 関数の仮想マシンコード生成 (caml2html: virtual_h) *)
 let h { Closure.name = (Id.L(x), t); Closure.args = yts; Closure.formal_fv = zts; Closure.body = e } =
