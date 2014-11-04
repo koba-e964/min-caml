@@ -40,7 +40,7 @@ let st (x, y, z, mul) succ =
   | V z' ->
   let aa = Id.genid "lidx" in
     let bb = Id.genid "lary" in
-      Let ((aa, Type.Int), Mul (z', mul), Let ((bb, Type.Int), Add (y, V aa), seq (St (x, bb), succ)))
+      Let ((aa, Type.Int), Arith (Syntax.AMul, z', C mul), Let ((bb, Type.Int), Add (y, V aa), seq (St (x, bb), succ)))
    
 let stDF (x, y, z, mul) succ =
   match z with
@@ -50,7 +50,7 @@ let stDF (x, y, z, mul) succ =
   | V z' ->
   let aa = Id.genid "lidx" in
     let bb = Id.genid "lary" in
-      Let ((aa, Type.Int), Mul (z', mul), Let ((bb, Type.Int), Add (y, V aa), seq (StF (x, bb), succ)))
+      Let ((aa, Type.Int), Arith (Syntax.AMul, z', C mul), Let ((bb, Type.Int), Add (y, V aa), seq (StF (x, bb), succ)))
    
 
 let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
@@ -74,7 +74,7 @@ let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
   | Closure.Neg(x) -> Ans(Neg(x))
   | Closure.Add(x, y) -> Ans(Add(x, V(y)))
   | Closure.Sub(x, y) -> Ans(Sub(x, y))
-  | Closure.Arith (op, x, y) -> failwith "mul/div not supported"
+  | Closure.Arith (op, x, y) -> Ans (Arith (op, x, V(y)))
   | Closure.FNeg(x) -> Ans(FNegD(x))
   | Closure.FAdd(x, y) -> Ans(FAddD(x, y))
   | Closure.FSub(x, y) -> Ans(FSubD(x, y))
@@ -152,7 +152,7 @@ let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
       | Type.Array(_) -> 
         let aa = Id.genid "lidx" in
         let bb = Id.genid "lary" in
-        Let ((aa, Type.Int), (Mul (y, 4)), Let ((bb, Type.Int), Add (x, V aa), Ans (Ld bb)))
+        Let ((aa, Type.Int), Arith (Syntax.AMul, y, C 4), Let ((bb, Type.Int), Add (x, V aa), Ans (Ld bb)))
       | _ -> assert false)
   | Closure.Put(x, y, z) ->
       (match M.find x env with

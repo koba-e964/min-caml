@@ -13,8 +13,7 @@ and exp = (* 一つ一つの命令に対応する式 (caml2html: sparcasm_exp) *)
   | Neg of Id.t
   | Add of Id.t * id_or_imm
   | Sub of Id.t * Id.t
-  | Mul of Id.t * int (* immediate only *)
-  | Div of Id.t * int
+  | Arith of Syntax.a_op * Id.t * id_or_imm (* immediate only *)
   | Ld of Id.t (* @addr *)
   | St of Id.t * Id.t (* op1 = @op2 *)
   | FMovD of Id.t
@@ -68,7 +67,7 @@ let rec remove_and_uniq xs = function
 let fv_id_or_imm = function V(x) -> [x] | _ -> []
 let rec fv_exp = function
   | Nop | Set(_) | SetF _ | SetL(_) | Comment(_) | Restore(_) -> []
-  | Mov(x) | Neg(x) | FMovD(x) | FNegD(x) | Save(x, _)  | Ld x | LdF x | Mul (x,_) | Div (x, _) -> [x]
+  | Mov(x) | Neg(x) | FMovD(x) | FNegD(x) | Save(x, _)  | Ld x | LdF x | Arith (_, x,_) -> [x]
   | Add(x, y') -> x :: fv_id_or_imm y'
   | St(x, y) | StF(x, y) | Sub(x, y) | FAddD(x, y) | FSubD(x, y) | FMulD(x, y) | FDivD(x, y) -> [x; y]
   | IfEq(x, y', e1, e2) | IfLE(x, y', e1, e2) -> x :: y' :: remove_and_uniq S.empty (fv e1 @ fv e2) (* uniq here just for efficiency *)
@@ -95,8 +94,8 @@ let rec show_asm_t (syn : t) : string = match syn with
   | Ans x -> show_exp x
   | Let ((id,ty), x, t) -> "let " ^ id ^ " : " ^ Type.show_type_t ty ^ " := " ^ show_exp x ^ " in\n" ^ show_asm_t t
 and show_ii = function
-  | V name -> name
-  | C i    -> string_of_int i
+  | V name -> "V:" ^ name
+  | C i    -> "C:" ^ string_of_int i
 and show_exp x = match x with
   | Nop -> "nop"
   | Set i -> "set " ^ string_of_int i
@@ -106,8 +105,8 @@ and show_exp x = match x with
   | Neg id -> "neg " ^ id
   | Add (id, v) -> "add " ^ id ^ ", " ^ show_ii v
   | Sub (id, v) -> "sub " ^ id ^ ", " ^ v
-  | Mul (id, v) -> "mul " ^ id ^ ", " ^ string_of_int v
-  | Div (id, v) -> "div " ^ id ^ ", " ^ string_of_int v
+  | Arith (Syntax.AMul, id, v) -> "mul " ^ id ^ ", " ^ show_ii v
+  | Arith (Syntax.ADiv, id, v) -> "div " ^ id ^ ", " ^ show_ii v
   | Ld (id) -> "ld " ^ id 
   | St (id1, id2) -> "st " ^ id1 ^ ", @" ^ id2
   | FMovD id -> "flop"

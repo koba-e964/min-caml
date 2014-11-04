@@ -200,9 +200,19 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   | NonTail(x), Sub(y, z') ->
 	(if x <> y then mov_labelref_or_reg oc y x;
 	 sub_id oc z' x)
-  | NonTail(x), Mul(y, z) -> if z == 2 then (mov_labelref_or_reg oc y x; add_id oc x x)
-    else failwith ("invalid mul imm: " ^ string_of_int z)
-  | NonTail(x), Div(y, z) -> failwith ("invalid div imm: " ^ string_of_int z)
+  | NonTail(x), Arith (Syntax.AMul, y, z) ->
+     if z = C 2 then (mov_labelref_or_reg oc y x; add_id oc x x)
+     else begin
+       if z = C 4 then (mov_labelref_or_reg oc y x; add_id oc x x; add_id oc x x)
+       else failwith ("invalid mul imm: " ^ show_ii z ^ " " ^ y ^ " *= " ^ show_ii z)
+     end
+  | NonTail(x), Arith (Syntax.ADiv, y, z) -> (* TODO very *ugly* code, it should be rewritten *)
+     if z = C 2 then begin
+       mov_labelref_or_reg oc y x;
+       Printf.fprintf oc "\tMOV\t#-1, R14\n";
+       Printf.fprintf oc "\tSHLD\tR14, %s" x
+     end else
+       failwith ("invalid div imm: " ^ show_ii z)
   | NonTail(x), Ld(y) -> Printf.fprintf oc "\tMOV.L\t@%s, %s\n" y x
   | NonTail(_), St(x, y) -> Printf.fprintf oc "\tMOV.L\t%s, @%s\n" x y
   | NonTail(x), FMovD(y) ->
@@ -262,7 +272,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   | Tail, (Nop | St _ | StF _ | Comment _ | Save _ as exp) ->
       g' oc (NonTail(Id.gentmp Type.Unit), exp);
       rts oc
-  | Tail, (Set _ | SetL _ | SetF _ | Mov _ | Neg _ | Add _ | Sub _ | Mul _ | Div _ | Ld _ as exp) ->
+  | Tail, (Set _ | SetL _ | SetF _ | Mov _ | Neg _ | Add _ | Sub _ | Arith _ | Ld _ as exp) ->
       g' oc (NonTail(regs.(0)), exp);
       rts oc
   | Tail, (FMovD _ | FNegD _ | FAddD _ | FSubD _ | FMulD _ | FDivD _ | LdF _  as exp) ->

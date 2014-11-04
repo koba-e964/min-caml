@@ -11,8 +11,7 @@ and exp =
   | Neg of Id.t
   | Add of Id.t * id_or_imm
   | Sub of Id.t * Id.t
-  | Mul of Id.t * int (* immediate only *)
-  | Div of Id.t * int
+  | Arith of Syntax.a_op * Id.t * id_or_imm (* immediate only *)
   | Ld of Id.t (* @addr *)
   | St of Id.t * Id.t (* op1 = @op2 *)
   | FMovD of Id.t
@@ -60,6 +59,7 @@ val concat : t -> Id.t * Type.t -> t -> t
 
 val align : int -> int
 
+val show_ii : id_or_imm -> string
 val show_asm_t : t -> string
 val show_prog : prog -> string
 
