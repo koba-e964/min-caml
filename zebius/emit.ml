@@ -210,7 +210,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
      if z = C 2 then begin
        mov_labelref_or_reg oc y x;
        Printf.fprintf oc "\tMOV\t#-1, R14\n";
-       Printf.fprintf oc "\tSHLD\tR14, %s" x
+       Printf.fprintf oc "\tSHLD\tR14, %s\n" x
      end else
        failwith ("invalid div imm: " ^ show_ii z)
   | NonTail(x), Ld(y) -> Printf.fprintf oc "\tMOV.L\t@%s, %s\n" y x
@@ -249,7 +249,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
 	Printf.fprintf oc "\tFDIV\tR14, %s\n" x
       else
 	(if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-	 Printf.fprintf oc "\tdivsd\t%s, %s\n" z x)
+	 Printf.fprintf oc "\tFDIV\t%s, %s; divsd\n" z x)
   | NonTail(x), LdF(y) -> Printf.fprintf oc "\tFMOV.S\t@%s, %s\n" y x
   | NonTail(_), StF(x, y) -> Printf.fprintf oc "\tFMOV.S\t%s, @%s\n" x y
   | NonTail(_), Comment(s) -> Printf.fprintf oc "\t; %s\n" s
@@ -386,7 +386,8 @@ and g'_args oc x_reg_cl ys zs =
      else if r = sw then
        store_disp oc (stacksize ()) y reg_sp
      else
-       Printf.fprintf oc "\tMOV\t%s, %s\n" y r)
+       Printf.fprintf oc "\tMOV\t%s, %s\n" y r;
+     Printf.fprintf oc "\t; shuffle-int\n")
     (shuffle sw yrs);
   let (d, zfrs) =
     List.fold_left
@@ -394,7 +395,13 @@ and g'_args oc x_reg_cl ys zs =
       (0, [])
       zs in
   List.iter
-    (fun (z, fr) -> Printf.fprintf oc "\tFMOV\t%s, %s\n" z fr)
+    (fun (z, fr) -> if z = sw then
+       load_disp_float oc (stacksize ()) reg_sp fr
+     else if fr = sw then
+       store_disp_float oc (stacksize ()) z reg_sp
+     else
+       Printf.fprintf oc "\tFMOV\t%s, %s\n" z fr;
+     Printf.fprintf oc "\t; shuffle-float\n")
     (shuffle sw zfrs)
 
 let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
@@ -430,8 +437,8 @@ let f oc lib (Prog(data, vardefs, fundefs, e)) =
   Printf.fprintf oc "\tSHLD\tR14, R15\n";
   List.iter (fun { vname = Id.L x; vtype; vbody } ->
     call oc ("." ^ x ^ "_init")) vardefs;
-  g oc (NonTail(regs.(0)), e);
-  Printf.fprintf oc "\tBRA\t.end\n";
+  g oc (NonTail(regs.(0)), e);  
+  jmp oc ".end";
   List.iter (fun fundef -> h oc fundef) fundefs;
   List.iter (emit_var oc) vardefs;
   stackset := S.empty;

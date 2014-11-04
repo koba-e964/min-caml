@@ -138,7 +138,7 @@ let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
           (0, g (M.add_list xts env) e2)
           (fun x offset load ->
             if not (S.mem x s) then load else (* [XX] a little ad hoc optimization *)
-            let aa = Id.genid "ltidx" in
+            let aa = Id.genid "ltfidx" in
             Let ((aa, Type.Int), Add (y, C offset), fletd(x, LdF aa, load)))
           (fun x t offset load ->
             if not (S.mem x s) then load else (* [XX] a little ad hoc optimization *)
@@ -149,6 +149,10 @@ let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
   | Closure.Get(x, y) -> (* 配列の読み出し (caml2html: virtual_get) *)
       (match M.find x env with
       | Type.Array(Type.Unit) -> Ans(Nop)
+      | Type.Array(Type.Float) -> 
+        let aa = Id.genid "lfidx" in
+        let bb = Id.genid "lfary" in
+        Let ((aa, Type.Int), Arith (Syntax.AMul, y, C 4), Let ((bb, Type.Int), Add (x, V aa), Ans (LdF bb)))
       | Type.Array(_) -> 
         let aa = Id.genid "lidx" in
         let bb = Id.genid "lary" in
