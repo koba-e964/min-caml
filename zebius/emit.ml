@@ -272,10 +272,10 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   | Tail, (Nop | St _ | StF _ | Comment _ | Save _ as exp) ->
       g' oc (NonTail(Id.gentmp Type.Unit), exp);
       rts oc
-  | Tail, (Set _ | SetL _ | SetF _ | Mov _ | Neg _ | Add _ | Sub _ | Arith _ | Ld _ as exp) ->
+  | Tail, (Set _ | SetL _ | Mov _ | Neg _ | Add _ | Sub _ | Arith _ | Ld _ as exp) ->
       g' oc (NonTail(regs.(0)), exp);
       rts oc
-  | Tail, (FMovD _ | FNegD _ | FAddD _ | FSubD _ | FMulD _ | FDivD _ | LdF _  as exp) ->
+  | Tail, (SetF _ | FMovD _ | FNegD _ | FAddD _ | FSubD _ | FMulD _ | FDivD _ | LdF _  as exp) ->
       g' oc (NonTail(fregs.(0)), exp);
       rts oc
   | Tail, (Restore(x) as exp) ->

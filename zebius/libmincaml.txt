@@ -1,11 +1,63 @@
 min_caml_print_int
+min_caml_print_int_bin ; print int(4bytes) in little-endian format.
+	MOV #-8, R1
+	WRITE R0
+	SHLD R1, R0
+	WRITE R0
+	SHLD R1, R0
+	WRITE R0
+	SHLD R1, R0
+	WRITE R0
 	RTS
+	AND R0, R0
+
+min_caml_print_char
+	WRITE R0
+	RTS
+	AND R0, R0
+
+min_caml_read_int
+min_caml_read_int_bin ; read int(4bytes) in little-endian format.
+	READ R0
+
+	MOV #8, R2
+	READ R1
+	SHLD R2, R1
+	OR R1, R0
+
+	MOV #16, R2
+	READ R1
+	SHLD R2, R1
+	OR R1, R0
+
+	MOV #24, R2
+	READ R1
+	SHLD R2, R1
+	OR R1, R0
+	RTS
+	AND R0, R0
+
+min_caml_read_float
+min_caml_read_float_bin
+	MOV.L .mcrfb0, R14
+	JSR @R14
+	AND R0, R0
+	BRA .mcrfb1
+	AND R0, R0
+.mcrfb0
+	.data.l min_caml_read_int_bin
+.mcrfb1
+	LDS R0, FPUL
+	FSTS FPUL, FR0
+	RTS
+	AND R0, R0
 
 min_caml_truncate
 min_caml_int_of_float
 	FTRC FR0, FPUL
 	STS FPUL, R0
 	RTS
+	AND R0, R0
 
 min_caml_float_of_int
 	LDS R0, FPUL
@@ -13,6 +65,7 @@ min_caml_float_of_int
 	RTS
 	AND R0, R0
 
+min_caml_fabs
 min_caml_abs_float
 	FLDI0 FR1
 	FCMP/GT FR1, FR0
@@ -82,6 +135,68 @@ min_caml_cos	; cos(x) = x
 min_caml_atan ; atan(x) = x
 	RTS
 	AND R0, R0
+
+min_caml_fiszero ; float -> bool
+	FLDI0 FR1
+	MOV #1, R0
+	FCMP/EQ FR1, FR0
+	BT .mcfi0_0
+	MOV #0, R0
+.mcfi0_0
+	RTS
+	AND R0, R0
+
+min_caml_fispos ; float -> bool
+	FLDI0 FR1
+	MOV #1, R0
+	FCMP/GT FR1, FR0
+	BT .mcfip_0
+	MOV #0, R0
+.mcfip_0
+	RTS
+	AND R0, R0
+
+min_caml_fisneg ; float -> bool
+	FLDI0 FR1
+	MOV #1, R0
+	FCMP/GT FR0, FR1
+	BT .mcfip_0
+	MOV #0, R0
+.mcfin_0
+	RTS
+	AND R0, R0
+
+min_caml_fneg
+	FNEG FR0
+	RTS
+	AND R0, R0
+
+min_caml_fsqr
+	FMUL FR0, FR0
+	RTS
+	AND R0, R0
+
+min_caml_fless
+	MOV #1, R0
+	FCMP/GT FR0, FR1
+	BT .mcfless0
+	MOV #0, R0
+.mcfless0
+	RTS
+	AND R0, R0
+
+min_caml_fhalf
+	FLDI1 FR1
+	FADD FR1, FR1
+	FDIV FR1, FR0
+	RTS
+	AND R0, R0
+min_caml_floor ; TODO not correct implementation
+	FTRC FR0, FPUL
+	STS FPUL, R0
+	RTS
+	AND R0, R0
+
 min_caml_create_array ; int -> 'a -> 'a array
 	MOV.L .mcca0, R2
 	BRA .mcca1
