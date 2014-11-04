@@ -44,26 +44,64 @@ let rec shuffle sw xys =
 					 xys)
   | xys, acyc -> acyc @ shuffle sw xys
 
-let load_disp oc n src dest = 
-  if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" n src;
-  Printf.fprintf oc "\tMOV.L\t@%s, %s\n" src dest;
-  if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" (-n) src
-let store_disp oc n src dest = 
-  if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" n dest;
-  Printf.fprintf oc "\tMOV.L\t%s, @%s\n" src dest;
-  if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" (-n) dest
-
-let load_disp_float oc n src dest = 
-  if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" n src;
-  Printf.fprintf oc "\tFMOV.S\t@%s, %s\n" src dest;
-  if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" (-n) src
-let store_disp_float oc n src dest = 
-  if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" n dest;
-  Printf.fprintf oc "\tFMOV.S\t%s, @%s\n" src dest;
-  if n <> 0 then Printf.fprintf oc "\tADD\t#%d, %s\n" (-n) dest
-
 let nop oc = 
   Printf.fprintf oc "\tAND\tR0, R0\n"
+
+let mov_label oc (label : string) r = 
+  let uniq= Id.genid ".imm_addr" in
+  let endpoint = Id.genid ".imm_endp" in
+  Printf.fprintf oc "\tMOV.L\t%s, %s\n" uniq r;
+  Printf.fprintf oc "\tBRA\t%s\n" endpoint;
+  nop oc;
+  Printf.fprintf oc "\t.align\n";
+  Printf.fprintf oc "%s\n" uniq;
+  Printf.fprintf oc "\t.data.l\t%s\n" label;
+  Printf.fprintf oc "%s\n" endpoint
+
+let mov_label_float oc (label : string) r = 
+  let uniq= Id.genid ".imm_addr" in
+  let endpoint = Id.genid ".imm_endp" in
+  Printf.fprintf oc "\tMOV.L\t%s, R14\n" uniq;
+  Printf.fprintf oc "\tLDS\tR14, FPUL\n";
+  Printf.fprintf oc "\tFSTS\tFPUL, %s\n" r;
+  Printf.fprintf oc "\tBRA\t%s\n" endpoint;
+  nop oc;
+  Printf.fprintf oc "\t.align\n";
+  Printf.fprintf oc "%s\n" uniq;
+  Printf.fprintf oc "\t.data.l\t%s\n" label;
+  Printf.fprintf oc "%s\n" endpoint
+
+let add_imm oc imm dest =
+  if is_reg_g dest then
+    if -128 <= imm && imm <= 127 then
+      Printf.fprintf oc "\tADD\t#%d, %s\n" imm dest
+    else begin
+      mov_label oc (Printf.sprintf "#%d" imm) "R14";
+      Printf.fprintf oc "\tADD\tR14, %s\n" dest
+    end
+  else begin
+    mov_label oc dest "R14";
+    Printf.fprintf oc "\tMOV.L\t@R14, R13\n";
+    Printf.fprintf oc "\tADD\t#%d, R13\n" imm;
+    Printf.fprintf oc "\tMOV.L\tR13, @R14\n"
+  end
+let load_disp oc n src dest = 
+  if n <> 0 then add_imm oc n src;
+  Printf.fprintf oc "\tMOV.L\t@%s, %s\n" src dest;
+  if n <> 0 then add_imm oc (-n) src
+let store_disp oc n src dest = 
+  if n <> 0 then add_imm oc n dest;
+  Printf.fprintf oc "\tMOV.L\t%s, @%s\n" src dest;
+  if n <> 0 then add_imm oc (-n) dest
+
+let load_disp_float oc n src dest = 
+  if n <> 0 then add_imm oc n src;
+  Printf.fprintf oc "\tFMOV.S\t@%s, %s\n" src dest;
+  if n <> 0 then add_imm oc (-n) src
+let store_disp_float oc n src dest = 
+  if n <> 0 then add_imm oc n dest;
+  Printf.fprintf oc "\tFMOV.S\t%s, @%s\n" src dest;
+  if n <> 0 then add_imm oc (-n) dest
 
 let call oc sr =
   let uniq_label = Id.genid ".call_addr" in
@@ -90,30 +128,6 @@ let rts oc =
   Printf.fprintf oc "\tMOV.L\t@R15, R14\n";
   Printf.fprintf oc "\tJMP\t@R14\n";
   nop oc
-let mov_label oc (label : string) r = 
-  let uniq= Id.genid ".imm_addr" in
-  let endpoint = Id.genid ".imm_endp" in
-  Printf.fprintf oc "\tMOV.L\t%s, %s\n" uniq r;
-  Printf.fprintf oc "\tBRA\t%s\n" endpoint;
-  nop oc;
-  Printf.fprintf oc "\t.align\n";
-  Printf.fprintf oc "%s\n" uniq;
-  Printf.fprintf oc "\t.data.l\t%s\n" label;
-  Printf.fprintf oc "%s\n" endpoint
-
-let mov_label_float oc (label : string) r = 
-  let uniq= Id.genid ".imm_addr" in
-  let endpoint = Id.genid ".imm_endp" in
-  Printf.fprintf oc "\tMOV.L\t%s, R14\n" uniq;
-  Printf.fprintf oc "\tLDS\tR14, FPUL\n";
-  Printf.fprintf oc "\tFSTS\tFPUL, %s\n" r;
-  Printf.fprintf oc "\tBRA\t%s\n" endpoint;
-  nop oc;
-  Printf.fprintf oc "\t.align\n";
-  Printf.fprintf oc "%s\n" uniq;
-  Printf.fprintf oc "\t.data.l\t%s\n" label;
-  Printf.fprintf oc "%s\n" endpoint
-
 let mov_imm oc imm r =
   if -128 <= imm && imm <= 127 then
     Printf.fprintf oc "\tMOV\t#%d, %s\n" imm r
@@ -128,15 +142,6 @@ let cmp_le oc src r =
 
 let sub_id oc src r = 
   Printf.fprintf oc "\tSUB\t%s, %s\n" src r
-let add_imm oc imm dest =
-  if is_reg_g dest then
-    Printf.fprintf oc "\tADD\t#%d, %s\n" imm dest
-  else begin
-    mov_label oc dest "R14";
-    Printf.fprintf oc "\tMOV.L\t@R14, R13\n";
-    Printf.fprintf oc "\tADD\t#%d, R13\n" imm;
-    Printf.fprintf oc "\tMOV.L\tR13, @R14\n"
-  end
 let add_id oc src dest = 
   if is_reg_g dest then begin
     if is_reg_g src then

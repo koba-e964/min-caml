@@ -1,13 +1,14 @@
 min_caml_print_int
-min_caml_print_int_bin ; print int(4bytes) in little-endian format.
+min_caml_print_int_bin ; print int(4bytes) in little-endian format. int -> int (unit)
+	MOV R0, R2
 	MOV #-8, R1
-	WRITE R0
-	SHLD R1, R0
-	WRITE R0
-	SHLD R1, R0
-	WRITE R0
-	SHLD R1, R0
-	WRITE R0
+	WRITE R2
+	SHLD R1, R2
+	WRITE R2
+	SHLD R1, R2
+	WRITE R2
+	SHLD R1, R2
+	WRITE R2
 	RTS
 	AND R0, R0
 
