@@ -311,7 +311,13 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   (* 関数呼び出しの仮想命令の実装 (caml2html: emit_call) *)
   | Tail, CallCls(x, ys, zs) -> (* 末尾呼び出し (caml2html: emit_tailcall) *)
       g'_args oc [(x, reg_cl)] ys zs;
-      Printf.fprintf oc "\tjmp\t*(%s)\n" reg_cl;
+      let ss = stacksize () in
+      if ss > 0 then add_imm oc ss reg_sp;
+      Printf.fprintf oc "\tMOV.L\t@%s, R14\n" reg_cl;
+      Printf.fprintf oc "\tJSR\t@R14\n";
+      nop oc;
+      if ss > 0 then add_imm oc (-ss) reg_sp;
+      rts oc
   | Tail, CallDir(Id.L(x), ys, zs) -> (* 末尾呼び出し *)
       g'_args oc [] ys zs;
       let ss = stacksize () in
