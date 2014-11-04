@@ -363,7 +363,8 @@ and g'_non_tail_if oc dest e1 e2 b bn =
   let stackset_back = !stackset in
   g oc (dest, e1);
   let stackset1 = !stackset in
-  Printf.fprintf oc "\tjmp\t%s\n" b_cont;
+  Printf.fprintf oc "\tBRA\t%s\n" b_cont;
+  nop oc;
   Printf.fprintf oc "%s\n" b_else;
   stackset := stackset_back;
   g oc (dest, e2);
