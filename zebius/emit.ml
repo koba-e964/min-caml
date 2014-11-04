@@ -450,10 +450,10 @@ let emit_var oc { vname = Id.L x; vtype = ty; vbody = exp } =
 let f oc lib (Prog(data, vardefs, fundefs, e)) =
   Format.eprintf "generating assembly...@.";
   Printf.fprintf oc "\tMOV\t#1, R15\n";
-  Printf.fprintf oc "\tMOV\t#15, R14\n";
-  Printf.fprintf oc "\tSHLD\tR14, R15\n";
+  Printf.fprintf oc "\tMOV\t#18, R14\n";
+  Printf.fprintf oc "\tSHLD\tR14, R15\n"; (* R15 = 0x40000 *)
   Printf.fprintf oc "\tMOV R15, R12\n";
-  Printf.fprintf oc "\tADD R12, R12\n"; (* R12 = 65536 *)
+  Printf.fprintf oc "\tADD R12, R12\n"; (* R12 = 0x80000 *)
   List.iter (fun { vname = Id.L x; vtype; vbody } ->
     call oc ("." ^ x ^ "_init")) vardefs;
   g oc (NonTail(regs.(0)), e);  

@@ -40,6 +40,8 @@ min_caml_read_int_bin ; read int(4bytes) in little-endian format.
 
 min_caml_read_float
 min_caml_read_float_bin
+	STS PR, R14
+	MOV.L R14, @R15
 	MOV.L .mcrfb0, R14
 	JSR @R14
 	AND R0, R0
@@ -50,7 +52,8 @@ min_caml_read_float_bin
 .mcrfb1
 	LDS R0, FPUL
 	FSTS FPUL, FR0
-	RTS
+	MOV.L @R15, R14
+	JMP @R14
 	AND R0, R0
 
 min_caml_truncate
