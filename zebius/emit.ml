@@ -403,14 +403,16 @@ let emit_var oc { vname = Id.L x; vtype = ty; vbody = exp } =
   rts oc;
   Printf.fprintf oc "\t.align\n";
   Printf.fprintf oc "min_caml_%s\n" x;
-  Printf.fprintf oc "\t.data.l #314159265\n"
+  Printf.fprintf oc "\t.data.l\t#314159265\n"
 
 (* vardefs are currently ignored *)
 let f oc lib (Prog(data, vardefs, fundefs, e)) =
   Format.eprintf "generating assembly...@.";
-  Printf.fprintf oc "\tMOV #1, R15\n";
-  Printf.fprintf oc "\tMOV #15, R14\n";
-  Printf.fprintf oc "\tSHLD R14, R15\n";
+  Printf.fprintf oc "\tMOV\t#1, R15\n";
+  Printf.fprintf oc "\tMOV\t#15, R14\n";
+  Printf.fprintf oc "\tSHLD\tR14, R15\n";
+  List.iter (fun { vname = Id.L x; vtype; vbody } ->
+    call oc ("." ^ x ^ "_init")) vardefs;
   g oc (NonTail(regs.(0)), e);
   Printf.fprintf oc "\tBRA\t.end\n";
   List.iter (fun fundef -> h oc fundef) fundefs;
