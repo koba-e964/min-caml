@@ -43,8 +43,8 @@ type prog = Prog of (Id.l * float) list * vardef list * fundef list * t
 let fletd(x, e1, e2) = Let((x, Type.Float), e1, e2)
 let seq(e1, e2) = Let((Id.gentmp Type.Unit, Type.Unit), e1, e2)
 
-let regs = Array.init 12 (fun i -> Printf.sprintf "R%d" i)
-let fregs = Array.init 16 (fun i -> Printf.sprintf "FR%d" i)
+let regs = Array.init 11 (fun i -> Printf.sprintf "R%d" i)
+let fregs = Array.init 15 (fun i -> Printf.sprintf "FR%d" i)
 let allregs = Array.to_list regs
 let allfregs = Array.to_list fregs
 let reg_cl = regs.(Array.length regs - 1) (* closure address (caml2html: sparcasm_regcl) *)
@@ -53,9 +53,9 @@ let reg_sw = regs.(Array.length regs - 1) (* temporary for swap *)
 let reg_fsw = fregs.(Array.length fregs - 1) (* temporary for swap *)
 *)
 let reg_sp = "R15" (* stack pointer *)
-let reg_hp = "min_caml_hp" (* heap pointer (caml2html: sparcasm_reghp) *)
+let reg_hp = "R12" (* heap pointer *)
 (* let reg_ra = "%eax" (* return address *) *)
-let is_reg x = (x.[0] = 'R' || x = reg_hp)
+let is_reg x = (x.[0] = 'R')
 
 (* super-tenuki *)
 let rec remove_and_uniq xs = function

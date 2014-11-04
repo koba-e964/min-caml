@@ -234,9 +234,9 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   | NonTail(x), FSubD(y, z) ->
       if x = z then (* [XXX] ugly *)
 	let ss = stacksize () in
-	Printf.fprintf oc "\tFMOV\t%s, FR14\n" z;
+	Printf.fprintf oc "\tFMOV\t%s, FR15\n" z;
 	if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-	Printf.fprintf oc "\tFSUB\tFR14, %s\n"  x
+	Printf.fprintf oc "\tFSUB\tFR15, %s\n"  x
       else
 	(if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
 	 Printf.fprintf oc "\tFSUB\t%s, %s\n" z x)
@@ -249,9 +249,9 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   | NonTail(x), FDivD(y, z) ->
       if x = z then (* [XXX] ugly *)
 	let ss = stacksize () in
-	Printf.fprintf oc "\tFMOV\t%s, FR14\n" y;
+	Printf.fprintf oc "\tFMOV\t%s, FR15\n" y;
 	if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-	Printf.fprintf oc "\tFDIV\tR14, %s\n" x
+	Printf.fprintf oc "\tFDIV\tFR15, %s\n" x
       else
 	(if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
 	 Printf.fprintf oc "\tFDIV\t%s, %s; divsd\n" z x)
@@ -355,7 +355,13 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
         Printf.fprintf oc "\tFMOV\t%s, %s\n" fregs.(0) a
 and g'_tail_if oc e1 e2 b bn =
   let b_else = Id.genid (b ^ "_else") in
-  Printf.fprintf oc "\t%s\t%s\n" bn b_else;
+  let tmp1 = Id.genid (b ^ "_iftmp1") in
+  let tmp2 = Id.genid (b ^ "_iftmp2") in
+  Printf.fprintf oc "\t%s\t%s\n" bn tmp1;
+  Printf.fprintf oc "\tBRA\t%s\n" tmp2;
+  Printf.fprintf oc "%s\n" tmp1;
+  Printf.fprintf oc "\tBRA\t%s\n" b_else;
+  Printf.fprintf oc "%s\n" tmp2;
   let stackset_back = !stackset in
   g oc (Tail, e1);
   Printf.fprintf oc "%s\n" b_else;
@@ -364,7 +370,13 @@ and g'_tail_if oc e1 e2 b bn =
 and g'_non_tail_if oc dest e1 e2 b bn =
   let b_else = Id.genid (b ^ "_else") in
   let b_cont = Id.genid (b ^ "_cont") in
-  Printf.fprintf oc "\t%s\t%s\n" bn b_else;
+  let tmp1 = Id.genid (b ^ "_iftmp1") in
+  let tmp2 = Id.genid (b ^ "_iftmp2") in
+  Printf.fprintf oc "\t%s\t%s\n" bn tmp1;
+  Printf.fprintf oc "\tBRA\t%s\n" tmp2;
+  Printf.fprintf oc "%s\n" tmp1;
+  Printf.fprintf oc "\tBRA\t%s\n" b_else;
+  Printf.fprintf oc "%s\n" tmp2;
   let stackset_back = !stackset in
   g oc (dest, e1);
   let stackset1 = !stackset in
@@ -440,6 +452,8 @@ let f oc lib (Prog(data, vardefs, fundefs, e)) =
   Printf.fprintf oc "\tMOV\t#1, R15\n";
   Printf.fprintf oc "\tMOV\t#15, R14\n";
   Printf.fprintf oc "\tSHLD\tR14, R15\n";
+  Printf.fprintf oc "\tMOV R15, R12\n";
+  Printf.fprintf oc "\tADD R12, R12\n"; (* R12 = 65536 *)
   List.iter (fun { vname = Id.L x; vtype; vbody } ->
     call oc ("." ^ x ^ "_init")) vardefs;
   g oc (NonTail(regs.(0)), e);  

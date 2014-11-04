@@ -199,13 +199,7 @@ min_caml_floor ; TODO not correct implementation
 	AND R0, R0
 
 min_caml_create_array ; int -> 'a -> 'a array
-	MOV.L .mcca0, R2
-	BRA .mcca1
-	AND R0, R0
-.mcca0
-	.data.l min_caml_hp
-.mcca1
-	MOV.L @R2, R3
+	MOV R12, R3
 	MOV R3, R6 ; old_min_caml_hp
 	MOV R0, R4
 .mcca2
@@ -218,19 +212,13 @@ min_caml_create_array ; int -> 'a -> 'a array
 	BRA .mcca2
 	AND R0, R0
 .mcca3
-	MOV.L R3, @R2
+	MOV R3, R12
 	MOV R6, R0
 	RTS
 	AND R0, R0
 
 min_caml_create_float_array ; int -> float -> float array
-	MOV.L .mccfa0, R2
-	BRA .mccfa1
-	AND R0, R0
-.mccfa0
-	.data.l min_caml_hp
-.mccfa1
-	MOV.L @R2, R3
+	MOV R12, R3
 	MOV R3, R6 ; old_min_caml_hp
 	MOV R0, R4
 .mccfa2
@@ -243,13 +231,11 @@ min_caml_create_float_array ; int -> float -> float array
 	BRA .mccfa2
 	AND R0, R0
 .mccfa3
-	MOV.L R3, @R2
+	MOV R3, R12
 	MOV R6, R0
 	RTS
 	AND R0, R0
 
 	.align
-min_caml_hp
-	.data.l	#65536
 
 
