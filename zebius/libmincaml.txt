@@ -192,9 +192,23 @@ min_caml_fhalf
 	FDIV FR1, FR0
 	RTS
 	AND R0, R0
-min_caml_floor ; TODO not correct implementation
+min_caml_floor ; float -> float
+	FLDI0 FR1
+	FCMP/GT FR0, FR1
+	BT .mcfloor0
 	FTRC FR0, FPUL
-	STS FPUL, R0
+	FLOAT FPUL, FR0
+	RTS
+	AND R0, R0
+.mcfloor0 ;negative
+	FTRC FR0, FPUL
+	FLOAT FPUL, FR2
+	FCMP/EQ FR0, FR2
+	BT .mcfloor1 ; exact integer?
+	FLDI1 FR1
+	FSUB FR1, FR2
+.mcfloor1
+	FMOV FR2, FR0
 	RTS
 	AND R0, R0
 
