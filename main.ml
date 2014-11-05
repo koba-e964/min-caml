@@ -161,6 +161,9 @@ let () = (* ここからコンパイラの実行が開始される (caml2html: main_entry) *)
    ;("cos", Type.Fun ([Type.Float], Type.Float))
    ;("atan", Type.Fun ([Type.Float], Type.Float))
    ;("sqrt", Type.Fun ([Type.Float], Type.Float))
+   ;("fless", Type.Fun ([Type.Float; Type.Float], Type.Bool))
+   ;("fispos", Type.Fun ([Type.Float], Type.Bool))
+   ;("fisneg", Type.Fun ([Type.Float], Type.Bool))
    ]
   M.empty;
   let vardec = ref [] in
