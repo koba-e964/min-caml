@@ -1,7 +1,9 @@
 let limit = ref 1000
 let asmlib   = ref "libmincaml.txt"
 let glib  = ref ""
+let inter = ref false
 let verbose = ref false
+let outfile = ref ""
 
 let rec iter n e = (* 最適化処理をくりかえす (caml2html: main_iter) *)
   Format.eprintf "iteration %d@." n;
@@ -31,6 +33,13 @@ let emit_code outchan vardecs fundecs (clexp : Closure.t) : unit =
   if !verbose then begin
     print_endline "**** simm ****";
     print_endline (Asm.show_prog simm);
+  end;
+  if !inter then begin 
+    let ir = Closure.Prog (vardecs, fundecs, clexp) in
+    let outchan = open_out (!outfile ^ "-inter.s") in
+    Printf.fprintf outchan "%s\n" (Closure.show_prog ir);
+    Printf.fprintf outchan "%s\n" (Asm.show_prog simm);
+    close_out outchan
   end;
   let reg = RegAlloc.f simm in
   if !verbose then begin
@@ -83,7 +92,7 @@ let process_declare (vardec : Closure.vardef list ref) (fundec : Closure.fundef 
   | Syntax.VarDec (id, exp) ->
     let (cl, ty) = process_exp vardec fundec exp in
     Typing.extenv := M.add id ty !Typing.extenv;
-    vardec := { Closure.vname = (Id.L id, ty); Closure.vbody = cl } :: !vardec;
+    vardec := !vardec @ [{ Closure.vname = (Id.L id, ty); Closure.vbody = cl }];
   | Syntax.FunDec ({ Syntax.name = (id, _) ; Syntax.args; Syntax.body = exp } as fd) -> 
     process_fundec vardec fundec fd
 
@@ -111,6 +120,7 @@ let lexbuf_lib inchan (vardec : Closure.vardef list ref) (fundec : Closure.funde
 let file f vardec fundec = (* ファイルをコンパイルしてファイルに出力する (caml2html: main_file) *)
   let inchan = open_in (f ^ ".ml") in
   let outchan = open_out (f ^ ".s") in
+  outfile := f;
   try
     let clexp = lexbuf_main inchan vardec fundec in
     emit_code outchan !vardec !fundec clexp;
@@ -135,6 +145,7 @@ let () = (* ここからコンパイラの実行が開始される (caml2html: main_entry) *)
     ;("-iter", Arg.Int(fun i -> limit := i), "maximum number of optimizations iterated")
     ;("-lib", Arg.String(fun i -> asmlib := i), "path to libmincaml.txt")
     ;("-glib", Arg.String(fun i -> glib := i), "path to globals.ml")
+    ;("-i", Arg.Unit(fun () -> inter := true), "emit IR (to *-inter.s)")
     ;("-v", Arg.Unit(fun () -> verbose := true), "verbose information")
     ]
     (fun s -> files := !files @ [s])

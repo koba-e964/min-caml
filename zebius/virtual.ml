@@ -164,7 +164,7 @@ let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
       | Type.Array(Type.Float) -> stDF(z, x, V(y), 4) (Ans Nop)
       | Type.Array(_) -> st(z, x, V(y), 4) (Ans Nop)
       | _ -> assert false)
-  | Closure.ExtArray(Id.L(x)) -> Ans(SetL(Id.L("min_caml_" ^ x)))
+  | Closure.ExtArray(Id.L(x)) -> g env (Closure.ExtVar (Id.L x, Type.Array Type.Unit (*stub*)))
   | Closure.ExtVar(Id.L(x), ty) ->
     let uniq = Id.genid "ext_var" in
     Let ((uniq, ty), (SetL (Id.L ("min_caml_" ^ x))), Ans (Ld uniq)) (* TODO this only works if type = int, bool, float *)
