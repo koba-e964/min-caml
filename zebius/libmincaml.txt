@@ -84,7 +84,23 @@ min_caml_sqrt
 	RTS
 	AND R0, R0
 
-min_caml_sin	; sin(x) = x
+min_caml_sin	; 
+	MOV.L .mcs1, R0
+	LDS R0, FPUL
+	FSTS FPUL, FR13
+	BRA .mcs2
+	AND R0, R0
+	.align
+.mcs1
+	.data.l #1086918619 ; 2*pi
+.mcs2
+	FMOV FR0, FR2
+	FDIV FR13, FR2 ; x / 2pi
+	FTRC FR2, FPUL
+	FLOAT FPUL, FR2
+	FMUL FR13, FR2
+	FSUB FR2, FR0 ;; x -= 2pi * ftrc (x / 2pi)
+
 	FMOV FR0, FR1
 	FLDI1 FR2
 	FLDI1 FR3
@@ -109,7 +125,23 @@ min_caml_sin	; sin(x) = x
 	RTS
 	AND R0, R0
 
-min_caml_cos	; cos(x) = x
+min_caml_cos	;
+	MOV.L .mcc1, R0
+	LDS R0, FPUL
+	FSTS FPUL, FR1
+	BRA .mcc2
+	AND R0, R0
+	.align
+.mcc1
+	.data.l #1086918619 ; 2*pi
+.mcc2
+	FMOV FR0, FR2
+	FDIV FR1, FR2 ; x / 2pi
+	FTRC FR2, FPUL
+	FLOAT FPUL, FR2
+	FMUL FR1, FR2
+	FSUB FR2, FR0 ;; x -= 2pi * floor (x / 2pi)
+
 	FMOV FR0, FR1
 	FLDI0 FR2 ; div = 0
 	FLDI1 FR3

@@ -195,7 +195,8 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       if x <> y then mov_labelref_or_reg oc y x
   | NonTail(x), Neg(y) ->
       if x <> y then mov_labelref_or_reg oc y x;
-      Printf.fprintf oc "\tNEG\t%s\n" x
+      Printf.fprintf oc "\tNOT\t%s, %s ; Neg-1\n" x x;
+      Printf.fprintf oc "\tADD\t#1, %s ; NEG-2\n" x
   | NonTail(x), Add(y, z') ->
       if V(x) = z' then
 	add_id_or_imm oc (V y) x
