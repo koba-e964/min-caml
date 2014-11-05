@@ -136,9 +136,6 @@ min_caml_cos	; cos(x) = x
 
 	RTS
 	AND R0, R0
-min_caml_atan ; atan(x) = x
-	RTS
-	AND R0, R0
 
 min_caml_fiszero ; float -> bool
 	FLDI0 FR1
@@ -238,6 +235,546 @@ min_caml_create_float_array ; int -> float -> float array
 	MOV R6, R0
 	RTS
 	AND R0, R0
+
+atan_sub.110
+	STS	PR, R14
+	MOV.L	R14, @R15
+	ADD	#4, R15
+	MOV.L	.imm_addr.255, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR1
+	BRA	.imm_endp.256
+	AND	R0, R0
+	.align
+.imm_addr.255
+	.data.l	#1065353216
+.imm_endp.256
+	; :float = 1.000000
+	FMOV	FR0, FR2
+	FMUL	FR0, FR2
+	MOV.L	.imm_addr.257, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR3
+	BRA	.imm_endp.258
+	AND	R0, R0
+	.align
+.imm_addr.257
+	.data.l	#1051372203
+.imm_endp.258
+	; :float = 0.333333
+	FMOV	FR0, FR4
+	FMUL	FR0, FR4
+	MOV.L	.imm_addr.259, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR5
+	BRA	.imm_endp.260
+	AND	R0, R0
+	.align
+.imm_addr.259
+	.data.l	#1045220557
+.imm_endp.260
+	; :float = 0.200000
+	FMOV	FR0, FR6
+	FMUL	FR0, FR6
+	MOV.L	.imm_addr.261, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR7
+	BRA	.imm_endp.262
+	AND	R0, R0
+	.align
+.imm_addr.261
+	.data.l	#1041385765
+.imm_endp.262
+	; :float = 0.142857
+	FMOV	FR0, FR8
+	FMUL	FR0, FR8
+	MOV.L	.imm_addr.263, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR9
+	BRA	.imm_endp.264
+	AND	R0, R0
+	.align
+.imm_addr.263
+	.data.l	#1038323257
+.imm_endp.264
+	; :float = 0.111111
+	FMOV	FR0, FR10
+	FMUL	FR0, FR10
+	MOV.L	.imm_addr.265, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR11
+	BRA	.imm_endp.266
+	AND	R0, R0
+	.align
+.imm_addr.265
+	.data.l	#1035611788
+.imm_endp.266
+	; :float = 0.090909
+	FMOV	FR0, FR12
+	FMUL	FR0, FR12
+	MOV.L	.imm_addr.267, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR13
+	BRA	.imm_endp.268
+	AND	R0, R0
+	.align
+.imm_addr.267
+	.data.l	#1033734617
+.imm_endp.268
+	; :float = 0.076923
+	FMOV	FR0, FR14
+	FMUL	FR0, FR14
+	FMOV.S	FR1, @R15
+	MOV.L	.imm_addr.269, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR1
+	BRA	.imm_endp.270
+	AND	R0, R0
+	.align
+.imm_addr.269
+	.data.l	#1032358025
+.imm_endp.270
+	; :float = 0.066667
+	ADD	#8, R15
+	FMOV.S	FR2, @R15
+	ADD	#-8, R15
+	FMOV	FR0, FR2
+	FMUL	FR0, FR2
+	ADD	#16, R15
+	FMOV.S	FR3, @R15
+	ADD	#-16, R15
+	MOV.L	.imm_addr.271, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR3
+	BRA	.imm_endp.272
+	AND	R0, R0
+	.align
+.imm_addr.271
+	.data.l	#1030811889
+.imm_endp.272
+	; :float = 0.058824
+	ADD	#24, R15
+	FMOV.S	FR4, @R15
+	ADD	#-24, R15
+	FMOV	FR0, FR4
+	FMUL	FR0, FR4
+	ADD	#32, R15
+	FMOV.S	FR5, @R15
+	ADD	#-32, R15
+	MOV.L	.imm_addr.273, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR5
+	BRA	.imm_endp.274
+	AND	R0, R0
+	.align
+.imm_addr.273
+	.data.l	#1029149750
+.imm_endp.274
+	; :float = 0.052632
+	ADD	#40, R15
+	FMOV.S	FR6, @R15
+	ADD	#-40, R15
+	FMOV	FR0, FR6
+	FMUL	FR0, FR6
+	ADD	#48, R15
+	FMOV.S	FR7, @R15
+	ADD	#-48, R15
+	MOV.L	.imm_addr.275, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR7
+	BRA	.imm_endp.276
+	AND	R0, R0
+	.align
+.imm_addr.275
+	.data.l	#1027804209
+.imm_endp.276
+	; :float = 0.047619
+	ADD	#56, R15
+	FMOV.S	FR0, @R15
+	ADD	#-56, R15
+	FMUL	FR0, FR0
+	ADD	#64, R15
+	FMOV.S	FR8, @R15
+	ADD	#-64, R15
+	MOV.L	.imm_addr.277, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR8
+	BRA	.imm_endp.278
+	AND	R0, R0
+	.align
+.imm_addr.277
+	.data.l	#1026692675
+.imm_endp.278
+	; :float = 0.043478
+	FMUL	FR8, FR0
+	FSUB	FR0, FR7
+	FMUL	FR7, FR6
+	FSUB	FR6, FR5
+	FMUL	FR5, FR4
+	FSUB	FR4, FR3
+	FMUL	FR3, FR2
+	FSUB	FR2, FR1
+	FMUL	FR1, FR14
+	FSUB	FR14, FR13
+	FMUL	FR13, FR12
+	FSUB	FR12, FR11
+	FMUL	FR11, FR10
+	FSUB	FR10, FR9
+	ADD	#64, R15
+	FMOV.S	@R15, FR0
+	ADD	#-64, R15
+	FMUL	FR9, FR0
+	ADD	#48, R15
+	FMOV.S	@R15, FR1
+	ADD	#-48, R15
+	FSUB	FR0, FR1
+	ADD	#40, R15
+	FMOV.S	@R15, FR0
+	ADD	#-40, R15
+	FMUL	FR1, FR0
+	ADD	#32, R15
+	FMOV.S	@R15, FR1
+	ADD	#-32, R15
+	FSUB	FR0, FR1
+	ADD	#24, R15
+	FMOV.S	@R15, FR0
+	ADD	#-24, R15
+	FMUL	FR1, FR0
+	ADD	#16, R15
+	FMOV.S	@R15, FR1
+	ADD	#-16, R15
+	FSUB	FR0, FR1
+	ADD	#8, R15
+	FMOV.S	@R15, FR0
+	ADD	#-8, R15
+	FMUL	FR1, FR0
+	FMOV.S	@R15, FR1
+	FSUB	FR0, FR1
+	ADD	#56, R15
+	FMOV.S	@R15, FR0
+	ADD	#-56, R15
+	FMUL	FR1, FR0
+	ADD	#-4, R15
+	MOV.L	@R15, R14
+	JMP	@R14
+	AND	R0, R0
+min_caml_atan
+	STS	PR, R14
+	MOV.L	R14, @R15
+	ADD	#4, R15
+	FMOV.S	FR0, @R15
+	ADD	#8, R15
+	MOV.L	.call_addr.279, R14
+	JSR	@R14
+	AND	R0, R0
+	BRA	.call_endp.280
+	AND	R0, R0
+	.align
+.call_addr.279
+	.data.l	min_caml_fisneg
+.call_endp.280
+	ADD	#-8, R15
+	MOV	#0, R1
+	CMP/EQ	R1, R0
+	BF	.JE_iftmp1.282
+	BRA	.JE_iftmp2.283
+.JE_iftmp1.282
+	BRA	.JE_else.281
+.JE_iftmp2.283
+	MOV.L	.imm_addr.284, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR1
+	BRA	.imm_endp.285
+	AND	R0, R0
+	.align
+.imm_addr.284
+	.data.l	#1054086093
+.imm_endp.285
+	; :float = 0.414214
+	FMOV.S	@R15, FR0
+	ADD	#8, R15
+	MOV.L	.call_addr.286, R14
+	JSR	@R14
+	AND	R0, R0
+	BRA	.call_endp.287
+	AND	R0, R0
+	.align
+.call_addr.286
+	.data.l	min_caml_fless
+.call_endp.287
+	ADD	#-8, R15
+	MOV	#0, R1
+	CMP/EQ	R1, R0
+	BF	.JE_iftmp1.289
+	BRA	.JE_iftmp2.290
+.JE_iftmp1.289
+	BRA	.JE_else.288
+.JE_iftmp2.290
+	MOV.L	.imm_addr.291, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR1
+	BRA	.imm_endp.292
+	AND	R0, R0
+	.align
+.imm_addr.291
+	.data.l	#1065353216
+.imm_endp.292
+	; :float = 1.000000
+	FMOV.S	@R15, FR0
+	ADD	#8, R15
+	MOV.L	.call_addr.293, R14
+	JSR	@R14
+	AND	R0, R0
+	BRA	.call_endp.294
+	AND	R0, R0
+	.align
+.call_addr.293
+	.data.l	min_caml_fless
+.call_endp.294
+	ADD	#-8, R15
+	MOV	#0, R1
+	CMP/EQ	R1, R0
+	BF	.JE_iftmp1.296
+	BRA	.JE_iftmp2.297
+.JE_iftmp1.296
+	BRA	.JE_else.295
+.JE_iftmp2.297
+	MOV.L	.imm_addr.298, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR1
+	BRA	.imm_endp.299
+	AND	R0, R0
+	.align
+.imm_addr.298
+	.data.l	#1075479162
+.imm_endp.299
+	; :float = 2.414214
+	FMOV.S	@R15, FR0
+	ADD	#8, R15
+	MOV.L	.call_addr.300, R14
+	JSR	@R14
+	AND	R0, R0
+	BRA	.call_endp.301
+	AND	R0, R0
+	.align
+.call_addr.300
+	.data.l	min_caml_fless
+.call_endp.301
+	ADD	#-8, R15
+	MOV	#0, R1
+	CMP/EQ	R1, R0
+	BF	.JE_iftmp1.303
+	BRA	.JE_iftmp2.304
+.JE_iftmp1.303
+	BRA	.JE_else.302
+.JE_iftmp2.304
+	MOV.L	.imm_addr.305, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR0
+	BRA	.imm_endp.306
+	AND	R0, R0
+	.align
+.imm_addr.305
+	.data.l	#1070141403
+.imm_endp.306
+	; :float = 1.570796
+	MOV.L	.imm_addr.307, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR1
+	BRA	.imm_endp.308
+	AND	R0, R0
+	.align
+.imm_addr.307
+	.data.l	#1065353216
+.imm_endp.308
+	; :float = 1.000000
+	FMOV.S	@R15, FR2
+	FDIV	FR2, FR1; divsd
+	ADD	#8, R15
+	FMOV.S	FR0, @R15
+	ADD	#-8, R15
+	FMOV	FR1, FR0
+	; shuffle-float
+	ADD	#16, R15
+	MOV.L	.call_addr.309, R14
+	JSR	@R14
+	AND	R0, R0
+	BRA	.call_endp.310
+	AND	R0, R0
+	.align
+.call_addr.309
+	.data.l	atan_sub.110
+.call_endp.310
+	ADD	#-16, R15
+	ADD	#8, R15
+	FMOV.S	@R15, FR1
+	ADD	#-8, R15
+	FMOV	FR0, FR15
+	FMOV	FR1, FR0
+	FSUB	FR15, FR0
+	ADD	#-4, R15
+	MOV.L	@R15, R14
+	JMP	@R14
+	AND	R0, R0
+.JE_else.302
+	MOV.L	.imm_addr.311, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR0
+	BRA	.imm_endp.312
+	AND	R0, R0
+	.align
+.imm_addr.311
+	.data.l	#1061752795
+.imm_endp.312
+	; :float = 0.785398
+	MOV.L	.imm_addr.313, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR1
+	BRA	.imm_endp.314
+	AND	R0, R0
+	.align
+.imm_addr.313
+	.data.l	#1065353216
+.imm_endp.314
+	; :float = 1.000000
+	FMOV.S	@R15, FR2
+	FMOV	FR1, FR15
+	FMOV	FR2, FR1
+	FSUB	FR15, FR1
+	MOV.L	.imm_addr.315, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR3
+	BRA	.imm_endp.316
+	AND	R0, R0
+	.align
+.imm_addr.315
+	.data.l	#1065353216
+.imm_endp.316
+	; :float = 1.000000
+	FADD	FR3, FR2
+	FDIV	FR2, FR1; divsd
+	ADD	#16, R15
+	FMOV.S	FR0, @R15
+	ADD	#-16, R15
+	FMOV	FR1, FR0
+	; shuffle-float
+	ADD	#24, R15
+	MOV.L	.call_addr.317, R14
+	JSR	@R14
+	AND	R0, R0
+	BRA	.call_endp.318
+	AND	R0, R0
+	.align
+.call_addr.317
+	.data.l	atan_sub.110
+.call_endp.318
+	ADD	#-24, R15
+	ADD	#16, R15
+	FMOV.S	@R15, FR1
+	ADD	#-16, R15
+	FADD	FR1, FR0
+	ADD	#-4, R15
+	MOV.L	@R15, R14
+	JMP	@R14
+	AND	R0, R0
+.JE_else.295
+	MOV.L	.imm_addr.319, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR0
+	BRA	.imm_endp.320
+	AND	R0, R0
+	.align
+.imm_addr.319
+	.data.l	#1061752795
+.imm_endp.320
+	; :float = 0.785398
+	MOV.L	.imm_addr.321, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR1
+	BRA	.imm_endp.322
+	AND	R0, R0
+	.align
+.imm_addr.321
+	.data.l	#1065353216
+.imm_endp.322
+	; :float = 1.000000
+	FMOV.S	@R15, FR2
+	FSUB	FR2, FR1
+	MOV.L	.imm_addr.323, R14
+	LDS	R14, FPUL
+	FSTS	FPUL, FR3
+	BRA	.imm_endp.324
+	AND	R0, R0
+	.align
+.imm_addr.323
+	.data.l	#1065353216
+.imm_endp.324
+	; :float = 1.000000
+	FADD	FR2, FR3
+	FDIV	FR3, FR1; divsd
+	ADD	#24, R15
+	FMOV.S	FR0, @R15
+	ADD	#-24, R15
+	FMOV	FR1, FR0
+	; shuffle-float
+	ADD	#32, R15
+	MOV.L	.call_addr.325, R14
+	JSR	@R14
+	AND	R0, R0
+	BRA	.call_endp.326
+	AND	R0, R0
+	.align
+.call_addr.325
+	.data.l	atan_sub.110
+.call_endp.326
+	ADD	#-32, R15
+	ADD	#24, R15
+	FMOV.S	@R15, FR1
+	ADD	#-24, R15
+	FMOV	FR0, FR15
+	FMOV	FR1, FR0
+	FSUB	FR15, FR0
+	ADD	#-4, R15
+	MOV.L	@R15, R14
+	JMP	@R14
+	AND	R0, R0
+.JE_else.288
+	FMOV.S	@R15, FR0
+	ADD	#32, R15
+	MOV.L	.call_addr.327, R14
+	JSR	@R14
+	AND	R0, R0
+	BRA	.call_endp.328
+	AND	R0, R0
+	.align
+.call_addr.327
+	.data.l	atan_sub.110
+.call_endp.328
+	ADD	#-32, R15
+	ADD	#-4, R15
+	MOV.L	@R15, R14
+	JMP	@R14
+	AND	R0, R0
+.JE_else.281
+	FMOV.S	@R15, FR0
+	FNEG	FR0
+	ADD	#32, R15
+	MOV.L	.call_addr.329, R14
+	JSR	@R14
+	AND	R0, R0
+	BRA	.call_endp.330
+	AND	R0, R0
+	.align
+.call_addr.329
+	.data.l	min_caml_atan
+.call_endp.330
+	ADD	#-32, R15
+	FNEG	FR0
+	ADD	#-4, R15
+	MOV.L	@R15, R14
+	JMP	@R14
+	AND	R0, R0
+
 
 	.align
 
