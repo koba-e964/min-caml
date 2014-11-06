@@ -49,9 +49,9 @@ let addtyp x = (x, Type.gentyp ())
 %left EQUAL LESS_GREATER LESS GREATER LESS_EQUAL GREATER_EQUAL
 %left PLUS MINUS PLUS_DOT MINUS_DOT
 %left AST SLASH AST_DOT SLASH_DOT
+%left prec_unary_semi
 %right prec_unary_minus
 %left prec_app
-%right prec_unary_semi
 %left DOT
 
 /* 開始記号の定義 */
