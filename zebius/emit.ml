@@ -1,8 +1,6 @@
 open Asm
 
-(* NOTE: This code assumes that R14,R13,R12 are temporary registers. *)
-
-let is_reg_g str = str.[0] = 'R'
+(* NOTE: This code assumes that R14,R13 are temporary registers. *)
 
 let stackset = ref S.empty (* すでにSaveされた変数の集合 (caml2html: emit_stackset) *)
 let stackmap = ref [] (* Saveされた変数の、スタックにおける位置 (caml2html: emit_stackmap) *)
@@ -72,18 +70,11 @@ let mov_label_float oc (label : string) r =
   Printf.fprintf oc "%s\n" endpoint
 
 let add_imm oc imm dest =
-  if is_reg_g dest then
-    if -128 <= imm && imm <= 127 then
-      Printf.fprintf oc "\tADD\t#%d, %s\n" imm dest
-    else begin
-      mov_label oc (Printf.sprintf "#%d" imm) "R14";
-      Printf.fprintf oc "\tADD\tR14, %s\n" dest
-    end
+  if -128 <= imm && imm <= 127 then
+    Printf.fprintf oc "\tADD\t#%d, %s\n" imm dest
   else begin
-    mov_label oc dest "R14";
-    Printf.fprintf oc "\tMOV.L\t@R14, R13\n";
-    Printf.fprintf oc "\tADD\t#%d, R13\n" imm;
-    Printf.fprintf oc "\tMOV.L\tR13, @R14\n"
+    mov_label oc (Printf.sprintf "#%d" imm) "R14";
+    Printf.fprintf oc "\tADD\tR14, %s\n" dest
   end
 let load_disp oc n src dest = 
   if n <> 0 then add_imm oc n src;
@@ -143,38 +134,14 @@ let cmp_le oc src r =
 let sub_id oc src r = 
   Printf.fprintf oc "\tSUB\t%s, %s\n" src r
 let add_id oc src dest = 
-  if is_reg_g dest then begin
-    if is_reg_g src then
-      Printf.fprintf oc "\tADD\t%s, %s\n" src dest
-    else begin
-      Printf.fprintf oc "\tMOV.L\t%s, R14" src;
-      Printf.fprintf oc "\tADD\tR14, %s\n" dest
-      end
-    end
-  else
-    if is_reg_g src then begin
-      mov_label oc dest "R14";
-      Printf.fprintf oc "\tMOV.L\t@R14, R13\n";
-      Printf.fprintf oc "\tADD\t%s, R13\n" src;
-      Printf.fprintf oc "\tMOV.L\tR13, @R14\n"
-      end
-    else begin
-      Printf.fprintf oc "\tMOV.L\t%s, R12" src;
-      mov_label oc dest "R14";
-      Printf.fprintf oc "\tMOV.L\t@R14, R13\n";
-      Printf.fprintf oc "\tADD\tR12, R13\n";
-      Printf.fprintf oc "\tMOV.L\tR13, @R14\n"
-    end
+  Printf.fprintf oc "\tADD\t%s, %s\n" src dest
 let add_id_or_imm oc ii dest = 
   match ii with
     | V reg -> add_id oc reg dest
     | C imm -> add_imm oc imm dest
 
-let mov_labelref_or_reg oc (lr : string) r =
-  if is_reg_g lr then
-    Printf.fprintf oc "\tMOV\t%s, %s\n" lr r
-  else
-    Printf.fprintf oc "\tMOV.L\t%s, %s\n" lr r
+let mov_labelref_or_reg oc src dest =
+  Printf.fprintf oc "\tMOV\t%s, %s\n" src dest
 
 let mov_float oc f r = 
     mov_label_float oc (Printf.sprintf "#%s" (Int32.to_string (Int32.bits_of_float f))) r;
@@ -204,6 +171,11 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
 	(if x <> y then mov_labelref_or_reg oc y x;
 	 	add_id_or_imm oc z' x)
   | NonTail(x), Sub(y, z') ->
+      if x = z' then begin
+        sub_id oc y x; (* x - y *)
+        Printf.fprintf oc "\tNOT\t%s, %s ; Neg-1\n" x x;
+        Printf.fprintf oc "\tADD\t#1, %s ; x = - (x - y)\n" x
+      end else
 	(if x <> y then mov_labelref_or_reg oc y x;
 	 sub_id oc z' x)
   | NonTail(x), Arith (Syntax.AMul, y, z) ->
@@ -233,12 +205,11 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
         (if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
 	 Printf.fprintf oc "\tFADD\t%s, %s\n" z x)
   | NonTail(x), FSubD(y, z) ->
-      if x = z then (* [XXX] ugly *)
-	let ss = stacksize () in
+      if x = z then (* [XXX] ugly *) begin
 	Printf.fprintf oc "\tFMOV\t%s, FR15\n" z;
 	if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-	Printf.fprintf oc "\tFSUB\tFR15, %s\n"  x
-      else
+	Printf.fprintf oc "\tFSUB\tFR15, %s\n" x
+      end else
 	(if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
 	 Printf.fprintf oc "\tFSUB\t%s, %s\n" z x)
   | NonTail(x), FMulD(y, z) ->
@@ -248,12 +219,11 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
         (if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
 	 Printf.fprintf oc "\tFMUL\t%s, %s\n" z x)
   | NonTail(x), FDivD(y, z) ->
-      if x = z then (* [XXX] ugly *)
-	let ss = stacksize () in
-	Printf.fprintf oc "\tFMOV\t%s, FR15\n" y;
+      if x = z then (* [XXX] ugly *) begin
+	Printf.fprintf oc "\tFMOV\t%s, FR15\n" z;
 	if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-	Printf.fprintf oc "\tFDIV\tFR15, %s\n" x
-      else
+	Printf.fprintf oc "\tFDIV\tFR15, %s ; swap-div\n" x
+      end else
 	(if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
 	 Printf.fprintf oc "\tFDIV\t%s, %s; divsd\n" z x)
   | NonTail(x), LdF(y) -> Printf.fprintf oc "\tFMOV.S\t@%s, %s\n" y x
