@@ -22,6 +22,7 @@ min-rt/*.s
 /asm.ml
 /asm.mli
 /emit.ml
+/inst.ml
 /regAlloc.ml
 /simm.ml
 /virtual.ml

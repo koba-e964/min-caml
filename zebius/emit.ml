@@ -1,4 +1,5 @@
-open Asm
+open Asm;;
+open Inst;;
 
 (* NOTE: This code assumes that R14 is temporary register. *)
 
@@ -27,6 +28,11 @@ let pp_id_or_imm = function
   | V(x) -> x
   | C(i) -> "#" ^ string_of_int i
 
+let insts = ref []
+
+let emit_inst (inst : zebius_inst) =
+  insts := !insts @ [inst]
+
 (* 関数呼び出しのために引数を並べ替える(register shuffling) (caml2html: emit_shuffle) *)
 let rec shuffle sw xys =
   (* remove identical moves *)
@@ -42,110 +48,97 @@ let rec shuffle sw xys =
 					 xys)
   | xys, acyc -> acyc @ shuffle sw xys
 
-let nop oc = 
-  Printf.fprintf oc "\tAND\tR0, R0\n"
+let nop oc = emit_inst (And (Reg 0, Reg 0))
 
 let mov_label oc (label : string) r = 
   let uniq= Id.genid ".imm_addr" in
   let endpoint = Id.genid ".imm_endp" in
-  Printf.fprintf oc "\tMOV.L\t%s, %s\n" uniq r;
-  Printf.fprintf oc "\tBRA\t%s\n" endpoint;
-  nop oc;
-  Printf.fprintf oc "\t.align\n";
-  Printf.fprintf oc "%s\n" uniq;
-  Printf.fprintf oc "\t.data.l\t%s\n" label;
-  Printf.fprintf oc "%s\n" endpoint
+  emit_inst (MovPc (uniq, reg_of_string r));
+  emit_inst (Bra endpoint);
+  emit_inst Align;
+  emit_inst (Label uniq);
+  emit_inst (DataL label);
+  emit_inst (Label endpoint)
 
 let mov_label_float oc (label : string) r = 
   let uniq= Id.genid ".imm_addr" in
   let endpoint = Id.genid ".imm_endp" in
-  Printf.fprintf oc "\tMOV.L\t%s, R14\n" uniq;
-  Printf.fprintf oc "\tLDS\tR14, FPUL\n";
-  Printf.fprintf oc "\tFSTS\tFPUL, %s\n" r;
-  Printf.fprintf oc "\tBRA\t%s\n" endpoint;
-  nop oc;
-  Printf.fprintf oc "\t.align\n";
-  Printf.fprintf oc "%s\n" uniq;
-  Printf.fprintf oc "\t.data.l\t%s\n" label;
-  Printf.fprintf oc "%s\n" endpoint
+  emit_inst (MovPc (uniq, Reg 14));
+  emit_inst (LdsFpul (Reg 14));
+  emit_inst (FstsFpul (freg_of_string r));
+  emit_inst (Bra endpoint);
+  emit_inst Align;
+  emit_inst (Label uniq);
+  emit_inst (DataL label);
+  emit_inst (Label endpoint)
 
 let add_imm oc imm dest =
   if -128 <= imm && imm <= 127 then
-    Printf.fprintf oc "\tADD\t#%d, %s\n" imm dest
+    emit_inst (AddI (imm, reg_of_string dest))
   else begin
     mov_label oc (Printf.sprintf "#%d" imm) "R14";
-    Printf.fprintf oc "\tADD\tR14, %s\n" dest
+    emit_inst (AddR (Reg 14, reg_of_string dest))
   end
 let load_disp oc n src dest = 
   if n <> 0 then add_imm oc n src;
-  Printf.fprintf oc "\tMOV.L\t@%s, %s\n" src dest;
+  emit_inst (Load (reg_of_string src, reg_of_string dest));
   if n <> 0 then add_imm oc (-n) src
 let store_disp oc n src dest = 
   if n <> 0 then add_imm oc n dest;
-  Printf.fprintf oc "\tMOV.L\t%s, @%s\n" src dest;
+  emit_inst (Store (reg_of_string src, reg_of_string dest));
   if n <> 0 then add_imm oc (-n) dest
 
 let load_disp_float oc n src dest = 
   if n <> 0 then add_imm oc n src;
-  Printf.fprintf oc "\tFMOV.S\t@%s, %s\n" src dest;
+  emit_inst (FLoad (reg_of_string src, freg_of_string dest));
   if n <> 0 then add_imm oc (-n) src
 let store_disp_float oc n src dest = 
   if n <> 0 then add_imm oc n dest;
-  Printf.fprintf oc "\tFMOV.S\t%s, @%s\n" src dest;
+  emit_inst (FStore (freg_of_string src, reg_of_string dest));
   if n <> 0 then add_imm oc (-n) dest
 
 let call oc sr =
   let uniq_label = Id.genid ".call_addr" in
   let endpoint = Id.genid ".call_endp" in
-  Printf.fprintf oc "\tMOV.L\t%s, R14\n" uniq_label;
-  Printf.fprintf oc "\tJSR\t@R14\n";
-  nop oc;
-  Printf.fprintf oc "\tBRA\t%s\n" endpoint;
-  nop oc;
-  Printf.fprintf oc "\t.align\n";
-  Printf.fprintf oc "%s\n" uniq_label;
-  Printf.fprintf oc "\t.data.l\t%s\n" sr;
-  Printf.fprintf oc "%s\n" endpoint
+  emit_inst (MovPc (uniq_label, Reg 14));
+  emit_inst (Jsr (Reg 14));
+  emit_inst (Bra endpoint);
+  emit_inst Align;
+  emit_inst (Label uniq_label);
+  emit_inst (DataL sr);
+  emit_inst (Label endpoint)
 let jmp oc sr =
   let uniq_label = Id.genid ".call_addr" in
-  Printf.fprintf oc "\tMOV.L\t%s, R14\n" uniq_label;
-  Printf.fprintf oc "\tJMP\t@R14\n";
-  nop oc;
-  Printf.fprintf oc "\t.align\n";
-  Printf.fprintf oc "%s\n" uniq_label;
-  Printf.fprintf oc "\t.data.l\t%s\n" sr
+  emit_inst (MovPc (uniq_label, Reg 14));
+  emit_inst (Jmp (Reg 14));
+  emit_inst Align;
+  emit_inst (Label uniq_label);
+  emit_inst (DataL sr)
 let rts oc = 
-  Printf.fprintf oc "\tADD\t#-4, R15\n";
-  Printf.fprintf oc "\tMOV.L\t@R15, R14\n";
-  Printf.fprintf oc "\tJMP\t@R14\n";
-  nop oc
+  emit_inst (AddI (-4, Reg 15));
+  emit_inst (Load (Reg 15, Reg 14));
+  emit_inst (Jmp (Reg 14))
 let mov_imm oc imm r =
-  if -128 <= imm && imm <= 127 then
-    Printf.fprintf oc "\tMOV\t#%d, %s\n" imm r
+  if Int32.of_int (-128) <= imm && imm <= Int32.of_int 127 then
+    emit_inst (MovI (Int32.to_int imm, reg_of_string r))
   else
-    mov_label oc (Printf.sprintf "#%d" imm) r
+    mov_label oc ("#" ^ Int32.to_string imm) r
 
-let cmp_eq oc src r = 
-  Printf.fprintf oc "\tCMP/EQ\t%s, %s\n" src r
-let cmp_le oc src r =
-  Printf.fprintf oc "\tCMP/GT\t%s, %s\n" src r
+let cmp_eq oc src r = emit_inst (CmpEq (reg_of_string src, reg_of_string r))
+let cmp_le oc src r = emit_inst (CmpGt (reg_of_string src, reg_of_string r))
 
-
-let sub_id oc src r = 
-  Printf.fprintf oc "\tSUB\t%s, %s\n" src r
-let add_id oc src dest = 
-  Printf.fprintf oc "\tADD\t%s, %s\n" src dest
+let sub_id oc src r = emit_inst (Sub (reg_of_string src, reg_of_string r))
+let add_id oc src dest = emit_inst (AddR (reg_of_string src, reg_of_string dest))
 let add_id_or_imm oc ii dest = 
   match ii with
     | V reg -> add_id oc reg dest
     | C imm -> add_imm oc imm dest
 
-let mov_labelref_or_reg oc src dest =
-  Printf.fprintf oc "\tMOV\t%s, %s\n" src dest
+let mov_labelref_or_reg oc src dest = emit_inst (mov src dest)
 
 let mov_float oc f r = 
     mov_label_float oc (Printf.sprintf "#%s" (Int32.to_string (Int32.bits_of_float f))) r;
-    Printf.fprintf oc "\t; :float = %f\n" f
+    emit_inst (Inst.Comment (Printf.sprintf "\t; :float = %f" f))
 type dest = Tail | NonTail of Id.t (* 末尾かどうかを表すデータ型 (caml2html: emit_dest) *)
 let rec g oc = function (* 命令列のアセンブリ生成 (caml2html: emit_g) *)
   | dest, Ans(exp) -> g' oc (dest, exp)
@@ -155,15 +148,15 @@ let rec g oc = function (* 命令列のアセンブリ生成 (caml2html: emit_g) *)
 and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   (* 末尾でなかったら計算結果をdestにセット (caml2html: emit_nontail) *)
   | NonTail(_), Nop -> ()
-  | NonTail(x), Set(i) -> mov_imm oc i x
+  | NonTail(x), Set(i) -> mov_imm oc (Int32.of_int i) x
   | NonTail(x), SetF(f) -> mov_float oc f x
   | NonTail(x), SetL(Id.L(y)) -> mov_label oc y x
   | NonTail(x), Mov(y) ->
       if x <> y then mov_labelref_or_reg oc y x
   | NonTail(x), Neg(y) ->
       if x <> y then mov_labelref_or_reg oc y x;
-      Printf.fprintf oc "\tNOT\t%s, %s ; Neg-1\n" x x;
-      Printf.fprintf oc "\tADD\t#1, %s ; NEG-2\n" x
+      emit_inst (Not (reg_of_string x, reg_of_string x));
+      emit_inst (AddI (1, reg_of_string x))
   | NonTail(x), Add(y, z') ->
       if V(x) = z' then
 	add_id_or_imm oc (V y) x
@@ -173,8 +166,8 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   | NonTail(x), Sub(y, z') ->
       if x = z' then begin
         sub_id oc y x; (* x - y *)
-        Printf.fprintf oc "\tNOT\t%s, %s ; Neg-1\n" x x;
-        Printf.fprintf oc "\tADD\t#1, %s ; x = - (x - y)\n" x
+        emit_inst (Not (reg_of_string x, reg_of_string x));
+        emit_inst (AddI (1, reg_of_string x))
       end else
 	(if x <> y then mov_labelref_or_reg oc y x;
 	 sub_id oc z' x)
@@ -187,48 +180,48 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   | NonTail(x), Arith (Syntax.ADiv, y, z) -> (* TODO very *ugly* code, it should be rewritten *)
      if z = C 2 then begin
        mov_labelref_or_reg oc y x;
-       Printf.fprintf oc "\tMOV\t#-1, R14\n";
-       Printf.fprintf oc "\tSHLD\tR14, %s\n" x
+       emit_inst (MovI (-1, Reg 14));
+       emit_inst (Shld (Reg 14, reg_of_string x))
      end else
        failwith ("invalid div imm: " ^ show_ii z)
-  | NonTail(x), Ld(y) -> Printf.fprintf oc "\tMOV.L\t@%s, %s\n" y x
-  | NonTail(_), St(x, y) -> Printf.fprintf oc "\tMOV.L\t%s, @%s\n" x y
+  | NonTail(x), Ld(y) -> emit_inst (Load (reg_of_string y, reg_of_string x))
+  | NonTail(_), St(x, y) -> emit_inst (Store (reg_of_string x, reg_of_string y))
   | NonTail(x), FMovD(y) ->
-      if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x
+      if x <> y then emit_inst (fmov y x);
   | NonTail(x), FNegD(y) ->
-      if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-      Printf.fprintf oc "\tFNEG\t%s\n" x
+      if x <> y then emit_inst (fmov y x);
+      emit_inst (FNeg (freg_of_string x))
   | NonTail(x), FAddD(y, z) ->
       if x = z then
-        Printf.fprintf oc "\tFADD\t%s, %s\n" y x
+        emit_inst (FOp (FAdd, freg_of_string y, freg_of_string x))
       else
-        (if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-	 Printf.fprintf oc "\tFADD\t%s, %s\n" z x)
+	(if x <> y then emit_inst (fmov y x);
+	 emit_inst (FOp (FAdd, freg_of_string z, freg_of_string x)))
   | NonTail(x), FSubD(y, z) ->
       if x = z then (* [XXX] ugly *) begin
-	Printf.fprintf oc "\tFMOV\t%s, FR15\n" z;
-	if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-	Printf.fprintf oc "\tFSUB\tFR15, %s\n" x
+        emit_inst (fmov z "FR15");
+	if x <> y then emit_inst (fmov y x);
+	emit_inst (FOp (FSub, FReg 15, freg_of_string x))
       end else
-	(if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-	 Printf.fprintf oc "\tFSUB\t%s, %s\n" z x)
+	(if x <> y then emit_inst (fmov y x);
+	 emit_inst (FOp (FSub, freg_of_string z, freg_of_string x)))
   | NonTail(x), FMulD(y, z) ->
       if x = z then
-        Printf.fprintf oc "\tFMUL\t%s, %s\n" y x
+        emit_inst (FOp (FMul, freg_of_string y, freg_of_string x))
       else
-        (if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-	 Printf.fprintf oc "\tFMUL\t%s, %s\n" z x)
+	(if x <> y then emit_inst (fmov y x);
+	 emit_inst (FOp (FMul, freg_of_string z, freg_of_string x)))
   | NonTail(x), FDivD(y, z) ->
       if x = z then (* [XXX] ugly *) begin
-	Printf.fprintf oc "\tFMOV\t%s, FR15\n" z;
-	if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-	Printf.fprintf oc "\tFDIV\tFR15, %s ; swap-div\n" x
+        emit_inst (fmov z "FR15");
+	if x <> y then emit_inst (fmov y x);
+	emit_inst (FOp (FDiv, FReg 15, freg_of_string x))
       end else
-	(if x <> y then Printf.fprintf oc "\tFMOV\t%s, %s\n" y x;
-	 Printf.fprintf oc "\tFDIV\t%s, %s; divsd\n" z x)
-  | NonTail(x), LdF(y) -> Printf.fprintf oc "\tFMOV.S\t@%s, %s\n" y x
-  | NonTail(_), StF(x, y) -> Printf.fprintf oc "\tFMOV.S\t%s, @%s\n" x y
-  | NonTail(_), Comment(s) -> Printf.fprintf oc "\t; %s\n" s
+	(if x <> y then emit_inst (fmov y x);
+	 emit_inst (FOp (FDiv, freg_of_string z, freg_of_string x)))
+  | NonTail(x), LdF(y) -> emit_inst (FLoad (reg_of_string y, freg_of_string x))
+  | NonTail(_), StF(x, y) -> emit_inst (FStore (freg_of_string x, reg_of_string y))
+  | NonTail(_), Asm.Comment(s) -> emit_inst (Inst.Comment s)
   (* 退避の仮想命令の実装 (caml2html: emit_save) *)
   | NonTail(_), Save(x, y) when List.mem x allregs && not (S.mem y !stackset) ->
       save y;
@@ -236,7 +229,6 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   | NonTail(_), Save(x, y) when List.mem x allfregs && not (S.mem y !stackset) ->
       savef y;
       store_disp_float oc (offset y) x reg_sp
-      (* Printf.fprintf oc "\tFMOV\t%s, %d(%s)\n" x (offset y) reg_sp *)
   | NonTail(_), Save(x, y) -> assert (S.mem y !stackset); ()
   (* 復帰の仮想命令の実装 (caml2html: emit_restore) *)
   | NonTail(x), Restore(y) when List.mem x allregs ->
@@ -262,36 +254,25 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       rts oc
   | Tail, IfEq(x, y', e1, e2) ->
       cmp_eq oc y' x;
-      g'_tail_if oc e1 e2 ".JE" "BF"
+      g'_tail_if oc e1 e2 ".JE" (fun x -> BC (false, x))
   | Tail, IfLE(x, y', e1, e2) ->
       cmp_le oc y' x;
-      g'_tail_if oc e1 e2 ".JLE" "BT"
-  | Tail, IfFEq(x, y, e1, e2) ->
-      Printf.fprintf oc "\tcomisd\t%s, %s\n" y x;
-      g'_tail_if oc e1 e2 "je" "jne"
-  | Tail, IfFLE(x, y, e1, e2) ->
-      Printf.fprintf oc "\tcomisd\t%s, %s\n" y x;
-      g'_tail_if oc e1 e2 "jbe" "ja"
+      g'_tail_if oc e1 e2 ".JLE" (fun x -> BC (true, x))
   | NonTail(z), IfEq(x, y', e1, e2) ->
       cmp_eq oc y' x;
-      g'_non_tail_if oc (NonTail(z)) e1 e2 ".je" "BF"
+      g'_non_tail_if oc (NonTail(z)) e1 e2 ".je" (fun x -> BC (false, x))
   | NonTail(z), IfLE(x, y', e1, e2) ->
       cmp_le oc y' x;
-      g'_non_tail_if oc (NonTail(z)) e1 e2 ".jle" "BT"
-  | NonTail(z), IfFEq(x, y, e1, e2) ->
-      Printf.fprintf oc "\tcomisd\t%s, %s\n" y x;
-      g'_non_tail_if oc (NonTail(z)) e1 e2 "je" "jne"
-  | NonTail(z), IfFLE(x, y, e1, e2) ->
-      Printf.fprintf oc "\tcomisd\t%s, %s\n" y x;
-      g'_non_tail_if oc (NonTail(z)) e1 e2 "jbe" "ja"
+      g'_non_tail_if oc (NonTail(z)) e1 e2 ".jle" (fun x -> BC (true, x))
+  | _, IfFEq(x, y, e1, e2) | _, IfFLE(x, y, e1, e2) ->
+     failwith "emit.ml: float comparison is not implemented"
   (* 関数呼び出しの仮想命令の実装 (caml2html: emit_call) *)
   | Tail, CallCls(x, ys, zs) -> (* 末尾呼び出し (caml2html: emit_tailcall) *)
       g'_args oc [(x, reg_cl)] ys zs;
       let ss = stacksize () in
       if ss > 0 then add_imm oc ss reg_sp;
-      Printf.fprintf oc "\tMOV.L\t@%s, R14\n" reg_cl;
-      Printf.fprintf oc "\tJSR\t@R14\n";
-      nop oc;
+      emit_inst (MovR (reg_of_string reg_cl, Reg 14));
+      emit_inst (Jsr (Reg 14));
       if ss > 0 then add_imm oc (-ss) reg_sp;
       rts oc
   | Tail, CallDir(Id.L(x), ys, zs) -> (* 末尾呼び出し *)
@@ -306,14 +287,13 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       g'_args oc [(x, reg_cl)] ys zs;
       let ss = stacksize () in
       if ss > 0 then add_imm oc ss reg_sp;
-      Printf.fprintf oc "\tMOV.L\t@%s, R14\n" reg_cl;
-      Printf.fprintf oc "\tJSR\t@R14\n";
-      nop oc;
+      emit_inst (MovR (reg_of_string reg_cl, Reg 14));
+      emit_inst (Jsr (Reg 14));
       if ss > 0 then add_imm oc (-ss) reg_sp;
       if List.mem a allregs && a <> regs.(0) then
-        Printf.fprintf oc "\tMOV\t%s, %s\n" regs.(0) a
+        emit_inst (mov regs.(0) a)
       else if List.mem a allfregs && a <> fregs.(0) then
-        Printf.fprintf oc "\tFMOV\t%s, %s\n" fregs.(0) a
+        emit_inst (fmov fregs.(0) a)
   | NonTail(a), CallDir(Id.L(x), ys, zs) ->
       g'_args oc [] ys zs;
       let ss = stacksize () in
@@ -321,21 +301,21 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       call oc x;
       if ss > 0 then add_imm oc (-ss) reg_sp;
       if List.mem a allregs && a <> regs.(0) then
-        Printf.fprintf oc "\tMOV\t%s, %s\n" regs.(0) a
+        emit_inst (mov regs.(0) a)
       else if List.mem a allfregs && a <> fregs.(0) then
-        Printf.fprintf oc "\tFMOV\t%s, %s\n" fregs.(0) a
+        emit_inst (fmov fregs.(0) a)
 and g'_tail_if oc e1 e2 b bn =
   let b_else = Id.genid (b ^ "_else") in
   let tmp1 = Id.genid (b ^ "_iftmp1") in
   let tmp2 = Id.genid (b ^ "_iftmp2") in
-  Printf.fprintf oc "\t%s\t%s\n" bn tmp1;
-  Printf.fprintf oc "\tBRA\t%s\n" tmp2;
-  Printf.fprintf oc "%s\n" tmp1;
-  Printf.fprintf oc "\tBRA\t%s\n" b_else;
-  Printf.fprintf oc "%s\n" tmp2;
+  emit_inst (bn tmp1);
+  emit_inst (Bra tmp2);
+  emit_inst (Label tmp1);
+  emit_inst (Bra b_else);
+  emit_inst (Label tmp2);
   let stackset_back = !stackset in
   g oc (Tail, e1);
-  Printf.fprintf oc "%s\n" b_else;
+  emit_inst (Label b_else);
   stackset := stackset_back;
   g oc (Tail, e2)
 and g'_non_tail_if oc dest e1 e2 b bn =
@@ -343,20 +323,19 @@ and g'_non_tail_if oc dest e1 e2 b bn =
   let b_cont = Id.genid (b ^ "_cont") in
   let tmp1 = Id.genid (b ^ "_iftmp1") in
   let tmp2 = Id.genid (b ^ "_iftmp2") in
-  Printf.fprintf oc "\t%s\t%s\n" bn tmp1;
-  Printf.fprintf oc "\tBRA\t%s\n" tmp2;
-  Printf.fprintf oc "%s\n" tmp1;
-  Printf.fprintf oc "\tBRA\t%s\n" b_else;
-  Printf.fprintf oc "%s\n" tmp2;
+  emit_inst (bn tmp1);
+  emit_inst (Bra tmp2);
+  emit_inst (Label tmp1);
+  emit_inst (Bra b_else);
+  emit_inst (Label tmp2);
   let stackset_back = !stackset in
   g oc (dest, e1);
   let stackset1 = !stackset in
-  Printf.fprintf oc "\tBRA\t%s\n" b_cont;
-  nop oc;
-  Printf.fprintf oc "%s\n" b_else;
+  emit_inst (Bra b_cont);
+  emit_inst (Label b_else);
   stackset := stackset_back;
   g oc (dest, e2);
-  Printf.fprintf oc "%s\n" b_cont;
+  emit_inst (Label b_cont);
   let stackset2 = !stackset in
   stackset := S.inter stackset1 stackset2
 and g'_args oc x_reg_cl ys zs =
@@ -370,12 +349,12 @@ and g'_args oc x_reg_cl ys zs =
       ys in
   List.iter
     (fun (y, r) -> if y = sw then
-       Printf.fprintf oc "\tMOV\tR14, %s\n" r
+       emit_inst (MovR (Reg 14, reg_of_string r))
      else if r = sw then
-       Printf.fprintf oc "\tMOV\t%s, R14\n" y
+       emit_inst (MovR (reg_of_string y, Reg 14))
      else
-       Printf.fprintf oc "\tMOV\t%s, %s\n" y r;
-     Printf.fprintf oc "\t; shuffle-int\n")
+       emit_inst (MovR (reg_of_string y, reg_of_string r));
+     emit_inst (Comment "shuffle-int"))
     (shuffle sw yrs);
   let (d, zfrs) =
     List.fold_left
@@ -384,66 +363,57 @@ and g'_args oc x_reg_cl ys zs =
       zs in
   List.iter
     (fun (z, fr) -> if z = sw then
-       Printf.fprintf oc "\tFMOV\tFR15, %s\n" fr
+       emit_inst (FMov (FReg 15, freg_of_string fr))
      else if fr = sw then
-       Printf.fprintf oc "\tFMOV\t%s, FR15\n" z
+       emit_inst (FMov (freg_of_string z, FReg 15))
      else
-       Printf.fprintf oc "\tFMOV\t%s, %s\n" z fr;
-     Printf.fprintf oc "\t; shuffle-float\n")
+       emit_inst (FMov (freg_of_string z, freg_of_string fr));
+     emit_inst (Comment "shuffle-float"))
     (shuffle sw zfrs)
 
 let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
-  Printf.fprintf oc "%s\n" x;
+  emit_inst (Label x);
   stackset := S.empty;
   stackmap := [];
-  Printf.fprintf oc "\tSTS\tPR, R14\n"; 
-  Printf.fprintf oc "\tMOV.L\tR14, @R15\n"; 
-  Printf.fprintf oc "\tADD\t#4, R15\n"; (* room for return address *)
+  emit_inst (StsPr (Reg 14));
+  emit_inst (Store (Reg 14, Reg 15));
+  emit_inst (AddI (4, Reg 15)); (* room for return address *)
   g oc (Tail, e)
 
 (* TODO type is ignored, and this doesn't work correctly unless ty = int, bool, float. *)
 let emit_var oc { vname = Id.L x; vtype = ty; vbody = exp } =
-  Printf.fprintf oc ".%s_init\n" x;
+  emit_inst (Label ("." ^ x ^ "_init"));
   stackset := S.empty;
   stackmap := [];
-  Printf.fprintf oc "\tSTS\tPR, R14\n"; 
-  Printf.fprintf oc "\tMOV.L\tR14, @R15\n"; 
-  Printf.fprintf oc "\tADD\t#4, R15\n"; (* room for return address *)
+  emit_inst (StsPr (Reg 14));
+  emit_inst (Store (Reg 14, Reg 15));
+  emit_inst (AddI (4, Reg 15)); (* room for return address *)
   g oc (NonTail (regs.(0)), exp);
   mov_label oc ("min_caml_" ^ x) "R14";
-  Printf.fprintf oc "\tMOV.L\tR0, @R14\n";
+  emit_inst (Store (Reg 0, Reg 14));
   rts oc;
-  Printf.fprintf oc "\t.align\n";
-  Printf.fprintf oc "min_caml_%s\n" x;
-  Printf.fprintf oc "\t.data.l\t#314159265\n"
+  emit_inst Align;
+  emit_inst (Label ("min_caml_" ^ x));
+  emit_inst (DataI (Int32.of_string "314159265"))
 
 (* vardefs are currently ignored *)
 let f oc lib (Prog(data, vardefs, fundefs, e)) =
   Format.eprintf "generating assembly...@.";
-  Printf.fprintf oc "\tMOV\t#1, R15\n";
-  Printf.fprintf oc "\tMOV\t#18, R14\n";
-  Printf.fprintf oc "\tSHLD\tR14, R15\n"; (* R15 = 0x40000 *)
-  Printf.fprintf oc "\tMOV R15, R12\n";
-  Printf.fprintf oc "\tADD R12, R12\n"; (* R12 = 0x80000 *)
+  emit_inst (MovI (1, Reg 15));
+  emit_inst (MovI (18, Reg 14));
+  emit_inst (Shld (Reg 14, Reg 15));
+  emit_inst (MovR (Reg 15, Reg 12));
+  emit_inst (AddR (Reg 12, Reg 12));
   List.iter (fun { vname = Id.L x; vtype; vbody } ->
     call oc ("." ^ x ^ "_init")) vardefs;
-  g oc (NonTail(regs.(0)), e);  
+  g oc (NonTail(regs.(0)), e);
   jmp oc ".end";
   List.iter (fun fundef -> h oc fundef) fundefs;
   List.iter (emit_var oc) vardefs;
   stackset := S.empty;
   stackmap := [];
-  let ic = open_in lib in
-  begin try
-    while true do
-      let line = input_line ic in
-      Printf.fprintf oc "%s\n" line;
-    done
-  with  | End_of_file ->  close_in ic
-        | e ->
-    close_in_noerr ic;
-    raise e
-  end;
-  Printf.fprintf oc ".end\n";
-  Printf.fprintf oc "\tAND R0, R0\n"
+  emit_inst (ExtFile lib);
+  emit_inst (Label ".end");
+  nop oc;
+  emit oc !insts
 
