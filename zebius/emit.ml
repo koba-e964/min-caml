@@ -1,6 +1,6 @@
 open Asm
 
-(* NOTE: This code assumes that R14,R13 are temporary registers. *)
+(* NOTE: This code assumes that R14 is temporary register. *)
 
 let stackset = ref S.empty (* すでにSaveされた変数の集合 (caml2html: emit_stackset) *)
 let stackmap = ref [] (* Saveされた変数の、スタックにおける位置 (caml2html: emit_stackmap) *)
@@ -370,9 +370,9 @@ and g'_args oc x_reg_cl ys zs =
       ys in
   List.iter
     (fun (y, r) -> if y = sw then
-       load_disp oc (stacksize ()) reg_sp r
+       Printf.fprintf oc "\tMOV\tR14, %s\n" r
      else if r = sw then
-       store_disp oc (stacksize ()) y reg_sp
+       Printf.fprintf oc "\tMOV\t%s, R14\n" y
      else
        Printf.fprintf oc "\tMOV\t%s, %s\n" y r;
      Printf.fprintf oc "\t; shuffle-int\n")
@@ -384,9 +384,9 @@ and g'_args oc x_reg_cl ys zs =
       zs in
   List.iter
     (fun (z, fr) -> if z = sw then
-       load_disp_float oc (stacksize ()) reg_sp fr
+       Printf.fprintf oc "\tFMOV\tFR15, %s\n" fr
      else if fr = sw then
-       store_disp_float oc (stacksize ()) z reg_sp
+       Printf.fprintf oc "\tFMOV\t%s, FR15\n" z
      else
        Printf.fprintf oc "\tFMOV\t%s, %s\n" z fr;
      Printf.fprintf oc "\t; shuffle-float\n")
