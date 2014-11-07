@@ -151,6 +151,6 @@ let emit_inst oc = function
     end
   | inst -> Printf.fprintf oc "%s\n" (show_inst inst)
 let emit oc code = 
-  List.iter (emit_inst oc) code
+  Queue.iter (emit_inst oc) code
 
 

@@ -28,10 +28,9 @@ let pp_id_or_imm = function
   | V(x) -> x
   | C(i) -> "#" ^ string_of_int i
 
-let insts = ref []
+let insts = Queue.create ()
 
-let emit_inst (inst : zebius_inst) =
-  insts := !insts @ [inst]
+let emit_inst (inst : zebius_inst) = Queue.add inst insts
 
 (* 関数呼び出しのために引数を並べ替える(register shuffling) (caml2html: emit_shuffle) *)
 let rec shuffle sw xys =
@@ -415,5 +414,5 @@ let f oc lib (Prog(data, vardefs, fundefs, e)) =
   emit_inst (ExtFile lib);
   emit_inst (Label ".end");
   nop oc;
-  emit oc !insts
+  emit oc insts
 
