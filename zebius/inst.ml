@@ -94,12 +94,12 @@ let show_inst = function
   | Read r  -> "\tREAD " ^ show_reg r
   | MovI (i, r) -> Printf.sprintf "\tMOV\t#%d, %s" i (show_reg r)
   | MovPc (l, r) -> Printf.sprintf "\tMOV.L\t%s, %s" l (show_reg r)
-  | MovR (r1, r2) -> Printf.sprintf "\tMOV\t%s, %s" (show_reg r1) (show_reg r2)
+  | MovR (r1, r2) -> if r1 <> r2 then Printf.sprintf "\tMOV\t%s, %s" (show_reg r1) (show_reg r2) else ";;;nop"
   | Store (r1, r2) -> Printf.sprintf "\tMOV.L\t%s, @%s" (show_reg r1) (show_reg r2)
   | Load (r1, r2) -> Printf.sprintf "\tMOV.L\t@%s, %s" (show_reg r1) (show_reg r2)
   | StsPr r -> Printf.sprintf "\tSTS\tPR, %s" (show_reg r)
   | AddR (r1, r2) -> Printf.sprintf "\tADD\t%s, %s" (show_reg r1) (show_reg r2)
-  | AddI (i, r) -> Printf.sprintf "\tADD\t#%d, %s" i (show_reg r)
+  | AddI (i, r) -> if i <> 0 then Printf.sprintf "\tADD\t#%d, %s" i (show_reg r) else ";;;nop"
   | CmpEq (r1, r2) -> Printf.sprintf "\tCMP/EQ\t%s, %s" (show_reg r1) (show_reg r2)
   | CmpGt (r1, r2) -> Printf.sprintf "\tCMP/GT\t%s, %s" (show_reg r1) (show_reg r2)
   | Sub (r1, r2) -> Printf.sprintf "\tSUB\t%s, %s" (show_reg r1) (show_reg r2)
@@ -115,7 +115,7 @@ let show_inst = function
   | Rts -> "\tRTS\n\tAND\tR0, R0"
   | FLdI0 fr -> Printf.sprintf "\tFLDI0\t%s" (show_freg fr)
   | FLdI1 fr -> Printf.sprintf "\tFLDI1\t%s" (show_freg fr)
-  | FMov (fr1, fr2) -> Printf.sprintf "\tFMOV\t%s, %s" (show_freg fr1) (show_freg fr2)
+  | FMov (fr1, fr2) -> if fr1 <> fr2 then Printf.sprintf "\tFMOV\t%s, %s" (show_freg fr1) (show_freg fr2) else ";;;nop"
   | FStore (fr1, r2) -> Printf.sprintf "\tFMOV.S\t%s, @%s" (show_freg fr1) (show_reg r2)
   | FLoad (r1, fr2) -> Printf.sprintf "\tFMOV.S\t@%s, %s" (show_reg r1) (show_freg fr2)
   | FOp (op, fr1, fr2) -> Printf.sprintf "\t%s\t%s, %s" (show_fop op) (show_freg fr1) (show_freg fr2)
