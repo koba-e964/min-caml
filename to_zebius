@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-cp zebius/*.ml{,i} zebius/libmincaml.txt .
-# cd shootout; ln -sf zebius/Makefile .; cd ..
-# cd bytemark; ln -sf zebius/Makefile .; cd ..

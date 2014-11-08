@@ -137,17 +137,19 @@ let show_inst = function
   | Comment s -> "\t;; " ^ s
   | ExtFile lib -> failwith "undefined"
 let emit_inst oc = function
-  | ExtFile lib ->   
-    let ic = open_in lib in
-    begin try
-      while true do
-        let line = input_line ic in
-        Printf.fprintf oc "%s\n" line;
-      done
-    with  | End_of_file ->  close_in ic
-          | e ->
-      close_in_noerr ic;
-      raise e
+  | ExtFile lib ->
+    if lib <> "" then begin
+      let ic = open_in lib in
+      begin try
+        while true do
+          let line = input_line ic in
+          Printf.fprintf oc "%s\n" line;
+        done
+      with  | End_of_file ->  close_in ic
+            | e ->
+        close_in_noerr ic;
+        raise e
+      end
     end
   | inst -> Printf.fprintf oc "%s\n" (show_inst inst)
 let emit oc code = 

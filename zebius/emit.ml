@@ -270,7 +270,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       g'_args oc [(x, reg_cl)] ys zs;
       let ss = stacksize () in
       if ss > 0 then add_imm oc ss reg_sp;
-      emit_inst (MovR (reg_of_string reg_cl, Reg 14));
+      emit_inst (Load (reg_of_string reg_cl, Reg 14));
       emit_inst (Jsr (Reg 14));
       if ss > 0 then add_imm oc (-ss) reg_sp;
       rts oc
@@ -286,7 +286,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       g'_args oc [(x, reg_cl)] ys zs;
       let ss = stacksize () in
       if ss > 0 then add_imm oc ss reg_sp;
-      emit_inst (MovR (reg_of_string reg_cl, Reg 14));
+      emit_inst (Load (reg_of_string reg_cl, Reg 14));
       emit_inst (Jsr (Reg 14));
       if ss > 0 then add_imm oc (-ss) reg_sp;
       if List.mem a allregs && a <> regs.(0) then

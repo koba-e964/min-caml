@@ -1,5 +1,5 @@
 let limit = ref 1000
-let asmlib   = ref "libmincaml.txt"
+let asmlib   = ref ""
 let glib  = ref ""
 let inter = ref false
 let verbose = ref false

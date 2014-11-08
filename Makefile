@@ -17,14 +17,17 @@ $(RESULT): debug-code top
 ##   再make時に（.mliが変更されているので）.mlも再コンパイルされる
 clean:: nobackup
 
+
+ARCHDEP = asm.mli virtual.mli simm.mli regAlloc.mli emit.mli asm.ml virtual.ml \
+simm.ml regAlloc.ml inst.ml emit.ml
+
 # ↓もし実装を改造したら、それに合わせて変える
 SOURCES = type.ml id.ml m.ml s.ml \
 syntax.ml parser.mly lexer.mll typing.mli typing.ml kNormal.mli kNormal.ml \
 alpha.mli alpha.ml beta.mli beta.ml assoc.mli assoc.ml \
 inline.mli inline.ml constFold.mli constFold.ml elim.mli elim.ml \
-closure.mli closure.ml asm.mli asm.ml virtual.mli virtual.ml \
-simm.mli simm.ml regAlloc.mli regAlloc.ml inst.ml emit.mli emit.ml \
-main.mli main.ml 
+closure.mli closure.ml \
+$(ARCHDEP:%=zebius/%) main.mli main.ml 
 
 test/%.s: $(RESULT) test/%.ml
 	./$(RESULT) test/$*
