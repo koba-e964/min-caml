@@ -154,6 +154,11 @@ let add_id_or_imm oc ii dest =
 let mov_labelref_or_reg oc src dest = emit_inst (mov src dest)
 
 let mov_float oc f r = 
+  if f = 0.0 then
+    emit_inst (FLdI0 (freg_of_string r))
+  else if f = 1.0 then
+    emit_inst (FLdI1 (freg_of_string r))
+  else
     mov_label_float oc (Printf.sprintf "#%s" (Int32.to_string (Int32.bits_of_float f))) r;
     emit_inst (Inst.Comment (Printf.sprintf "\t; :float = %f" f))
 type dest = Tail | NonTail of Id.t (* 末尾かどうかを表すデータ型 (caml2html: emit_dest) *)
