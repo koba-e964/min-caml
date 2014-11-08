@@ -152,20 +152,20 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   | NonTail(x), SetL(Id.L(y)) -> mov_label oc y x
   | NonTail(x), Mov(y) ->
       if x <> y then mov_labelref_or_reg oc y x
-  | NonTail(x), Neg(y) ->
+  | NonTail(x), Asm.Neg(y) ->
       if x <> y then mov_labelref_or_reg oc y x;
-      emit_inst (Not (reg_of_string x, reg_of_string x));
+      emit_inst (Inst.Not (reg_of_string x, reg_of_string x));
       emit_inst (AddI (1, reg_of_string x))
-  | NonTail(x), Add(y, z') ->
+  | NonTail(x), Asm.Add(y, z') ->
       if V(x) = z' then
 	add_id_or_imm oc (V y) x
       else
 	(if x <> y then mov_labelref_or_reg oc y x;
 	 	add_id_or_imm oc z' x)
-  | NonTail(x), Sub(y, z') ->
+  | NonTail(x), Asm.Sub(y, z') ->
       if x = z' then begin
         sub_id oc y x; (* x - y *)
-        emit_inst (Not (reg_of_string x, reg_of_string x));
+        emit_inst (Inst.Not (reg_of_string x, reg_of_string x));
         emit_inst (AddI (1, reg_of_string x))
       end else
 	(if x <> y then mov_labelref_or_reg oc y x;
