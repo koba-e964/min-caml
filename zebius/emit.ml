@@ -436,6 +436,6 @@ let f oc lib (Prog(data, vardefs, fundefs, e)) =
   stackmap := [];
   emit_inst (ExtFile lib);
   emit_inst (Label ".end");
-  nop oc;
-  emit oc insts
+  emit oc insts;
+  Printf.fprintf oc "\tAND R0,R0\n"
 

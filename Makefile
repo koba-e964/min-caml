@@ -18,7 +18,7 @@ $(RESULT): debug-code top
 clean:: nobackup
 
 
-ARCHDEP = asm.mli virtual.mli simm.mli regAlloc.mli emit.mli asm.ml virtual.ml \
+ARCHDEP = asm.mli virtual.mli simm.mli regAlloc.mli inst.mli emit.mli asm.ml virtual.ml \
 simm.ml regAlloc.ml inst.ml emit.ml
 
 # ↓もし実装を改造したら、それに合わせて変える
