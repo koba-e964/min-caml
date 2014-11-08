@@ -72,9 +72,18 @@ let mov_label_float oc (label : string) r =
   emit_inst (Label endpoint)
 
 let add_imm oc imm dest =
-  if -128 <= imm && imm <= 127 then
-    emit_inst (AddI (imm, reg_of_string dest))
-  else begin
+  if -256 <= imm && imm <= 254 then begin
+    let r = reg_of_string dest in
+    if -128 <= imm && imm <= 127 then
+      emit_inst (AddI (imm, r))
+    else if imm >= 128 then begin
+      emit_inst (AddI (127, r));
+      emit_inst (AddI (imm - 127, r))
+    end else begin
+      emit_inst (AddI (-128, r));
+      emit_inst (AddI (imm + 128, r))
+    end
+  end else begin
     mov_label oc (Printf.sprintf "#%d" imm) "R14";
     emit_inst (AddR (Reg 14, reg_of_string dest))
   end
@@ -118,9 +127,18 @@ let rts oc =
   emit_inst (Load (Reg 15, Reg 14));
   emit_inst (Jmp (Reg 14))
 let mov_imm oc imm r =
-  if Int32.of_int (-128) <= imm && imm <= Int32.of_int 127 then
-    emit_inst (MovI (Int32.to_int imm, reg_of_string r))
-  else
+  if Int32.of_int (-256) <= imm && imm <= Int32.of_int 254 then begin
+    let i_imm = Int32.to_int imm in
+    if -128 <= i_imm && i_imm <= 127 then
+      emit_inst (MovI (i_imm, reg_of_string r))
+    else if i_imm >= 128 then begin
+      emit_inst (MovI (127, reg_of_string r));
+      emit_inst (AddI (i_imm - 127, reg_of_string r))
+    end else begin
+      emit_inst (MovI (-128, reg_of_string r));
+      emit_inst (AddI (i_imm + 128, reg_of_string r))
+    end
+  end else
     mov_label oc ("#" ^ Int32.to_string imm) r
 
 let cmp_eq oc src r = emit_inst (CmpEq (reg_of_string src, reg_of_string r))
