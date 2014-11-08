@@ -87,6 +87,7 @@ let filter_queue p queue =
   newq
 
 let list_of_queue q = List.rev (Queue.fold (fun x y -> y :: x) [] q)
+let rec times n f x = if n <= 0 then x else times (n-1) f (f x)
 
 let is_nop = function
   | AddI (i, _) -> i = 0
@@ -99,9 +100,19 @@ let is_nop = function
 
 let eliminate_nop = filter_queue (fun x -> not (is_nop x))
 
+let peep_one newq ls = match ls with
+  | AddI (i1, r1) :: AddI (i2, r2) :: rest when r1 = r2 && i1 + i2 <= 127 && i1 + i2 >= -128 ->
+    Queue.add (AddI (i1 + i2, r1)) newq; rest
+  | x :: y -> Queue.add x newq; y
+  | [] -> failwith "error:peep_one"
+
 let peephole_opt q = 
   let l = list_of_queue q in
-  q
+  let newq = Queue.create () in
+  let rec proc ls = match ls with
+    | [] -> ()
+    | _ :: _ -> proc (peep_one newq ls)
+  in proc l; newq
 
 let show_reg (Reg x) = "R" ^ string_of_int x
 let show_freg (FReg x) = "FR" ^ string_of_int x
@@ -178,7 +189,7 @@ let emit oc code =
   Printf.eprintf "eliminating NOPs...\n";
   let el = eliminate_nop code in
   Printf.eprintf "peephole optimization...\n";
-  let po = peephole_opt el in
+  let po = times 5 peephole_opt el in
   Queue.iter (emit_inst oc) po
 
 
