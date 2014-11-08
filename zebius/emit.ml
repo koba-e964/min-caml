@@ -126,7 +126,7 @@ let mov_imm oc imm r =
 let cmp_eq oc src r = emit_inst (CmpEq (reg_of_string src, reg_of_string r))
 let cmp_le oc src r = emit_inst (CmpGt (reg_of_string src, reg_of_string r))
 
-let sub_id oc src r = emit_inst (Sub (reg_of_string src, reg_of_string r))
+let sub_id oc src r = emit_inst (Inst.Sub (reg_of_string src, reg_of_string r))
 let add_id oc src dest = emit_inst (AddR (reg_of_string src, reg_of_string dest))
 let add_id_or_imm oc ii dest = 
   match ii with
@@ -236,10 +236,10 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       assert (List.mem x allfregs);
       load_disp_float oc (offset y) reg_sp x
   (* 末尾だったら計算結果を第一レジスタにセットしてret (caml2html: emit_tailret) *)
-  | Tail, (Nop | St _ | StF _ | Comment _ | Save _ as exp) ->
+  | Tail, (Nop | St _ | StF _ | Asm.Comment _ | Save _ as exp) ->
       g' oc (NonTail(Id.gentmp Type.Unit), exp);
       rts oc
-  | Tail, (Set _ | SetL _ | Mov _ | Neg _ | Add _ | Sub _ | Arith _ | Ld _ as exp) ->
+  | Tail, (Asm.Set _ | Asm.SetL _ | Asm.Mov _ | Asm.Neg _ | Asm.Add _ | Asm.Sub _ | Asm.Arith _ | Asm.Ld _ as exp) ->
       g' oc (NonTail(regs.(0)), exp);
       rts oc
   | Tail, (SetF _ | FMovD _ | FNegD _ | FAddD _ | FSubD _ | FMulD _ | FDivD _ | LdF _  as exp) ->
@@ -353,7 +353,7 @@ and g'_args oc x_reg_cl ys zs =
        emit_inst (MovR (reg_of_string y, Reg 14))
      else
        emit_inst (MovR (reg_of_string y, reg_of_string r));
-     emit_inst (Comment "shuffle-int"))
+     emit_inst (Inst.Comment "shuffle-int"))
     (shuffle sw yrs);
   let (d, zfrs) =
     List.fold_left
@@ -367,7 +367,7 @@ and g'_args oc x_reg_cl ys zs =
        emit_inst (FMov (freg_of_string z, FReg 15))
      else
        emit_inst (FMov (freg_of_string z, freg_of_string fr));
-     emit_inst (Comment "shuffle-float"))
+     emit_inst (Inst.Comment "shuffle-float"))
     (shuffle sw zfrs)
 
 let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
