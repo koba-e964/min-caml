@@ -109,7 +109,7 @@ let show_inst = function
   | Xor (r1, r2) -> Printf.sprintf "\tXOR\t%s, %s" (show_reg r1) (show_reg r2)
   | Shld (r1, r2) -> Printf.sprintf "\tSHLD\t%s, %s" (show_reg r1) (show_reg r2)
   | BC (b, l) -> "\t" ^ (if b then "BT" else "BF") ^ "\t" ^ l
-  | Bra l -> Printf.sprintf "\tBRA\t%s" l
+  | Bra l -> Printf.sprintf "\tBRA\t%s\n\tAND\tR0, R0" l
   | Jmp r -> Printf.sprintf "\tJMP\t@%s\n\tAND\tR0, R0" (show_reg r)
   | Jsr r -> Printf.sprintf "\tJSR\t@%s\n\tAND\tR0, R0" (show_reg r)
   | Rts -> "\tRTS\n\tAND\tR0, R0"
