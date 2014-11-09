@@ -219,9 +219,8 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
 	 emit_inst (FOp (FAdd, freg_of_string z, freg_of_string x)))
   | NonTail(x), FSubD(y, z) ->
       if x = z then (* [XXX] ugly *) begin
-        emit_inst (fmov z "FR15");
-	if x <> y then emit_inst (fmov y x);
-	emit_inst (FOp (FSub, FReg 15, freg_of_string x))
+	emit_inst (FOp (FSub, freg_of_string y, freg_of_string x));
+        if y <> x then emit_inst (FNeg (freg_of_string x))
       end else
 	(if x <> y then emit_inst (fmov y x);
 	 emit_inst (FOp (FSub, freg_of_string z, freg_of_string x)))
