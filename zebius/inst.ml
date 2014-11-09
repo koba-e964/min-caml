@@ -160,7 +160,7 @@ let show_inst = function
   | FldsFpul fr -> Printf.sprintf "\tFLDS\t%s, FPUL" (show_freg fr)
   | FstsFpul fr -> Printf.sprintf "\tFSTS\tFPUL, %s" (show_freg fr)
   | FtrcFpul fr -> Printf.sprintf "\tFTRC\t%s, FPUL" (show_freg fr)
-  | FloatFpul fr -> Printf.sprintf "\tFLOAt\tFPUL, %s" (show_freg fr)
+  | FloatFpul fr -> Printf.sprintf "\tFLOAT\tFPUL, %s" (show_freg fr)
   | Pseudo ps -> failwith "pseudo-code"
   | Label l -> l
   | DataI i -> "\t.data.l\t#" ^ Int32.to_string i

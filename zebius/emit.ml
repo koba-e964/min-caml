@@ -22,10 +22,6 @@ let locate x =
 let offset x = let l = locate x in if l = [] then failwith ("offset of " ^ x ^ " is not defined: stackmap = " ^ List.fold_left (fun x y -> x ^ " " ^ y) "" !stackmap) else 4 * List.hd l (* TODO ad-hoc modification, should be fixed  FIXME *)
 let stacksize () = List.length !stackmap * 4
 
-let pp_id_or_imm = function
-  | V(x) -> x
-  | C(i) -> "#" ^ string_of_int i
-
 let insts = Queue.create ()
 
 let emit_inst (inst : zebius_inst) = Queue.add inst insts
@@ -156,9 +152,14 @@ let mov_float oc f r =
     emit_inst (FLdI0 (freg_of_string r))
   else if f = 1.0 then
     emit_inst (FLdI1 (freg_of_string r))
-  else
+  else if float_of_int (int_of_float f) = f && -256.0 <= f && f <= 254.0 then begin
+    mov_imm oc (Int32.of_float f) "R14";
+    emit_inst (LdsFpul (Reg 14));
+    emit_inst (FloatFpul (freg_of_string r))
+  end else begin
     mov_label_float oc (Printf.sprintf "#%s" (Int32.to_string (Int32.bits_of_float f))) r;
     emit_inst (Inst.Comment (Printf.sprintf "\t; :float = %f" f))
+  end
 type dest = Tail | NonTail of Id.t (* 末尾かどうかを表すデータ型 (caml2html: emit_dest) *)
 let rec g oc = function (* 命令列のアセンブリ生成 (caml2html: emit_g) *)
   | dest, Ans(exp) -> g' oc (dest, exp)
