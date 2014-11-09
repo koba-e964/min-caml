@@ -186,9 +186,9 @@ let emit_inst oc = function
   | inst -> Printf.fprintf oc "%s\n" (show_inst inst)
 let emit oc code = 
   Printf.eprintf "eliminating NOPs...\n";
-  let el = eliminate_nop code in
   Printf.eprintf "peephole optimization...\n";
-  let po = times 5 peephole_opt el in
+  let el =  code in
+  let po = times 7 (fun x -> eliminate_nop (peephole_opt x)) el in
   Queue.iter (emit_inst oc) po
 
 
