@@ -12,9 +12,7 @@ let save x =
 let savef x =
   stackset := S.add x !stackset;
   if not (List.mem x !stackmap) then
-    (let pad =
-      if List.length !stackmap mod 2 = 0 then [] else [Id.gentmp Type.Int] in
-    stackmap := !stackmap @ pad @ [x; x])
+    stackmap := !stackmap @ [x] (* float is 4-byte *)
 let locate x =
   let rec loc = function
     | [] -> []
@@ -22,7 +20,7 @@ let locate x =
     | y :: zs -> List.map succ (loc zs) in
   loc !stackmap
 let offset x = let l = locate x in if l = [] then failwith ("offset of " ^ x ^ " is not defined: stackmap = " ^ List.fold_left (fun x y -> x ^ " " ^ y) "" !stackmap) else 4 * List.hd l (* TODO ad-hoc modification, should be fixed  FIXME *)
-let stacksize () = align (List.length !stackmap * 4)
+let stacksize () = List.length !stackmap * 4
 
 let pp_id_or_imm = function
   | V(x) -> x
