@@ -95,7 +95,6 @@ let is_nop = function
   | FMov (FReg a, FReg b) -> a = b
   | And (Reg a, Reg b) -> a = b
   | Or (Reg a, Reg b) -> a = b
-  | And (Reg a, Reg b) -> a = b
   | _ -> false
 
 let eliminate_nop = filter_queue (fun x -> not (is_nop x))

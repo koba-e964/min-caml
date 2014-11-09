@@ -57,5 +57,10 @@ type zebius_inst =
   | ExtFile of string
   | Comment of string
 
+val reg_of_string : string -> reg
+val freg_of_string : string -> freg
+val mov : string -> string -> zebius_inst
+val fmov : string -> string -> zebius_inst
+
 val emit : out_channel -> zebius_inst Queue.t -> unit 
 
