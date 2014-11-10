@@ -169,36 +169,6 @@ min_caml_cos	;
 	RTS
 	AND R0, R0
 
-min_caml_fiszero ; float -> bool
-	FLDI0 FR1
-	MOV #1, R0
-	FCMP/EQ FR1, FR0
-	BT .mcfi0_0
-	MOV #0, R0
-.mcfi0_0
-	RTS
-	AND R0, R0
-
-min_caml_fispos ; float -> bool
-	FLDI0 FR1
-	MOV #1, R0
-	FCMP/GT FR1, FR0
-	BT .mcfip_0
-	MOV #0, R0
-.mcfip_0
-	RTS
-	AND R0, R0
-
-min_caml_fisneg ; float -> bool
-	FLDI0 FR1
-	MOV #1, R0
-	FCMP/GT FR0, FR1
-	BT .mcfip_0
-	MOV #0, R0
-.mcfin_0
-	RTS
-	AND R0, R0
-
 min_caml_fneg
 	FNEG FR0
 	RTS
@@ -206,15 +176,6 @@ min_caml_fneg
 
 min_caml_fsqr
 	FMUL FR0, FR0
-	RTS
-	AND R0, R0
-
-min_caml_fless
-	MOV #1, R0
-	FCMP/GT FR0, FR1
-	BT .mcfless0
-	MOV #0, R0
-.mcfless0
 	RTS
 	AND R0, R0
 

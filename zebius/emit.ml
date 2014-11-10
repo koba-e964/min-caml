@@ -284,8 +284,18 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   | NonTail(z), IfLE(x, y', e1, e2) ->
       cmp_le oc y' x;
       g'_non_tail_if oc (NonTail(z)) e1 e2 ".jle" (fun x -> BC (true, x))
-  | _, IfFEq(x, y, e1, e2) | _, IfFLE(x, y, e1, e2) ->
-     failwith "emit.ml: float comparison is not implemented"
+  | Tail, IfFEq(x, y, e1, e2) ->
+      emit_inst (FCmpEq (freg_of_string x, freg_of_string y));
+      g'_tail_if oc e1 e2 ".JEQ_f" (fun x -> BC (false, x))
+  | Tail, IfFLE(x, y, e1, e2) ->
+      emit_inst (FCmpGt (freg_of_string y, freg_of_string x));
+      g'_tail_if oc e1 e2 ".JLE_f" (fun x -> BC (true, x))
+  | NonTail z, IfFEq(x, y, e1, e2) ->
+      emit_inst (FCmpEq (freg_of_string x, freg_of_string y));
+      g'_non_tail_if oc (NonTail z) e1 e2 ".jeq_f" (fun x -> BC (false, x))
+  | NonTail z, IfFLE(x, y, e1, e2) ->
+      emit_inst (FCmpGt (freg_of_string y, freg_of_string x));
+      g'_non_tail_if oc (NonTail z) e1 e2 ".jle_f" (fun x -> BC (true, x))
   (* 関数呼び出しの仮想命令の実装 (caml2html: emit_call) *)
   | Tail, CallCls(x, ys, zs) -> (* 末尾呼び出し (caml2html: emit_tailcall) *)
       g'_args oc [(x, reg_cl)] ys zs;
