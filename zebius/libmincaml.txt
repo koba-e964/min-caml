@@ -69,15 +69,6 @@ min_caml_float_of_int
 	RTS
 	AND R0, R0
 
-min_caml_fabs
-min_caml_abs_float
-	FLDI0 FR1
-	FCMP/GT FR1, FR0
-	BT .mcaf0
-	FNEG FR0
-.mcaf0
-	RTS
-	AND R0, R0
 
 min_caml_sqrt
 	FSQRT FR0
@@ -169,22 +160,6 @@ min_caml_cos	;
 	RTS
 	AND R0, R0
 
-min_caml_fneg
-	FNEG FR0
-	RTS
-	AND R0, R0
-
-min_caml_fsqr
-	FMUL FR0, FR0
-	RTS
-	AND R0, R0
-
-min_caml_fhalf
-	FLDI1 FR1
-	FADD FR1, FR1
-	FDIV FR1, FR0
-	RTS
-	AND R0, R0
 min_caml_floor ; float -> float
 	FLDI0 FR1
 	FCMP/GT FR0, FR1
