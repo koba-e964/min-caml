@@ -12,6 +12,10 @@ let rec size = function
 let rec g env knmap = function (* インライン展開ルーチン本体 (caml2html: inline_g) *)
   | IfEq(x, y, e1, e2) -> IfEq(x, y, g env knmap e1, g env knmap e2)
   | IfLE(x, y, e1, e2) -> IfLE(x, y, g env knmap e1, g env knmap e2)
+  | Let(xt, IfEq(x, y, tr, fl), e) when size tr <= !threshold && size fl <= !threshold && size e <= !threshold -> 
+      IfEq(x, y, Let(xt, tr, g env knmap e), Let(xt, fl, g env knmap e))
+  | Let(xt, IfLE(x, y, tr, fl), e) when size tr <= !threshold && size fl <= !threshold && size e <= !threshold -> 
+      IfLE(x, y, Let(xt, tr, g env knmap e), Let(xt, fl, g env knmap e))
   | Let(xt, e1, e2) -> Let(xt, g env knmap e1, g env knmap e2)
   | LetRec({ name = (x, t); args = yts; body = e1 }, e2) -> (* 関数定義の場合 (caml2html: inline_letrec) *)
       let env = if size e1 > !threshold then env else M.add x (yts, e1) env in
