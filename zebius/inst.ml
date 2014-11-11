@@ -89,6 +89,32 @@ let filter_queue p queue =
 let list_of_queue q = List.rev (Queue.fold (fun x y -> y :: x) [] q)
 let rec times n f x = if n <= 0 then x else times (n-1) f (f x)
 
+let replace_abc b lbl : zebius_inst list =
+  let tmp1 = Id.genid "._iftmp1" in
+  let tmp2 = Id.genid "._iftmp2" in
+  [ BC (b, tmp1)
+  ; Bra tmp2
+  ; Label tmp1
+  ; Bra lbl
+  ; Label tmp2
+  ]
+
+let pseudo_one newq ls = match ls with
+  | Pseudo (ABC (b, lbl)) :: rest ->
+    List.iter (fun x -> Queue.add x newq) (replace_abc b lbl); rest
+  | x :: y -> Queue.add x newq; y
+  | [] -> failwith "error:pseudo_one"
+
+
+
+let process_pseudo q = 
+  let l = list_of_queue q in
+  let newq = Queue.create () in
+  let rec proc ls = match ls with
+    | [] -> ()
+    | _ :: _ -> proc (pseudo_one newq ls)
+  in proc l; newq
+
 let is_nop = function
   | AddI (i, _) -> i = 0
   | MovR (Reg a, Reg b) -> a = b
@@ -185,6 +211,7 @@ let emit_inst oc = function
     end
   | inst -> Printf.fprintf oc "%s\n" (show_inst inst)
 let emit oc code = 
+  let code = process_pseudo code in
   Printf.eprintf "eliminating NOPs...\n";
   Printf.eprintf "peephole optimization...\n";
   let el =  code in

@@ -274,28 +274,28 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       rts oc
   | Tail, IfEq(x, y', e1, e2) ->
       cmp_eq oc y' x;
-      g'_tail_if oc e1 e2 ".JE" (fun x -> BC (false, x))
+      g'_tail_if oc e1 e2 ".JE" (fun x -> Pseudo (ABC (false, x)))
   | Tail, IfLE(x, y', e1, e2) ->
       cmp_le oc y' x;
-      g'_tail_if oc e1 e2 ".JLE" (fun x -> BC (true, x))
+      g'_tail_if oc e1 e2 ".JLE" (fun x -> Pseudo (ABC (true, x)))
   | NonTail(z), IfEq(x, y', e1, e2) ->
       cmp_eq oc y' x;
-      g'_non_tail_if oc (NonTail(z)) e1 e2 ".je" (fun x -> BC (false, x))
+      g'_non_tail_if oc (NonTail(z)) e1 e2 ".je" (fun x -> Pseudo (ABC (false, x)))
   | NonTail(z), IfLE(x, y', e1, e2) ->
       cmp_le oc y' x;
-      g'_non_tail_if oc (NonTail(z)) e1 e2 ".jle" (fun x -> BC (true, x))
+      g'_non_tail_if oc (NonTail(z)) e1 e2 ".jle" (fun x -> Pseudo (ABC (true, x)))
   | Tail, IfFEq(x, y, e1, e2) ->
       emit_inst (FCmpEq (freg_of_string x, freg_of_string y));
-      g'_tail_if oc e1 e2 ".JEQ_f" (fun x -> BC (false, x))
+      g'_tail_if oc e1 e2 ".JEQ_f" (fun x -> Pseudo (ABC (false, x)))
   | Tail, IfFLE(x, y, e1, e2) ->
       emit_inst (FCmpGt (freg_of_string y, freg_of_string x));
-      g'_tail_if oc e1 e2 ".JLE_f" (fun x -> BC (true, x))
+      g'_tail_if oc e1 e2 ".JLE_f" (fun x -> Pseudo (ABC (true, x)))
   | NonTail z, IfFEq(x, y, e1, e2) ->
       emit_inst (FCmpEq (freg_of_string x, freg_of_string y));
-      g'_non_tail_if oc (NonTail z) e1 e2 ".jeq_f" (fun x -> BC (false, x))
+      g'_non_tail_if oc (NonTail z) e1 e2 ".jeq_f" (fun x -> Pseudo (ABC (false, x)))
   | NonTail z, IfFLE(x, y, e1, e2) ->
       emit_inst (FCmpGt (freg_of_string y, freg_of_string x));
-      g'_non_tail_if oc (NonTail z) e1 e2 ".jle_f" (fun x -> BC (true, x))
+      g'_non_tail_if oc (NonTail z) e1 e2 ".jle_f" (fun x -> Pseudo (ABC (true, x)))
   (* 関数呼び出しの仮想命令の実装 (caml2html: emit_call) *)
   | Tail, CallCls(x, ys, zs) -> (* 末尾呼び出し (caml2html: emit_tailcall) *)
       g'_args oc [(x, reg_cl)] ys zs;
@@ -336,13 +336,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
         emit_inst (fmov fregs.(0) a)
 and g'_tail_if oc e1 e2 b bn =
   let b_else = Id.genid (b ^ "_else") in
-  let tmp1 = Id.genid (b ^ "_iftmp1") in
-  let tmp2 = Id.genid (b ^ "_iftmp2") in
-  emit_inst (bn tmp1);
-  emit_inst (Bra tmp2);
-  emit_inst (Label tmp1);
-  emit_inst (Bra b_else);
-  emit_inst (Label tmp2);
+  emit_inst (bn b_else);
   let stackset_back = !stackset in
   g oc (Tail, e1);
   emit_inst (Label b_else);
@@ -351,13 +345,7 @@ and g'_tail_if oc e1 e2 b bn =
 and g'_non_tail_if oc dest e1 e2 b bn =
   let b_else = Id.genid (b ^ "_else") in
   let b_cont = Id.genid (b ^ "_cont") in
-  let tmp1 = Id.genid (b ^ "_iftmp1") in
-  let tmp2 = Id.genid (b ^ "_iftmp2") in
-  emit_inst (bn tmp1);
-  emit_inst (Bra tmp2);
-  emit_inst (Label tmp1);
-  emit_inst (Bra b_else);
-  emit_inst (Label tmp2);
+  emit_inst (bn b_else);
   let stackset_back = !stackset in
   g oc (dest, e1);
   let stackset1 = !stackset in
