@@ -26,8 +26,9 @@ let rec g env knmap = function (* インライン展開ルーチン本体 (caml2html: inline_
 	  zs
 	  ys in
       Alpha.g env' e
-  | ExtFunApp (x, ys) when M.mem x !knmap ->
-      let  {name =(n,_); args=zs; body = e} = M.find x !knmap in
+  | ExtFunApp (x, ys) as expr when M.mem x !knmap ->
+     let  {name =(n,_); args=zs; body = e} = M.find x !knmap in
+     if size e <= !threshold then begin
       Format.eprintf "inlining %s@." x;
       let env' =
 	List.fold_left2
@@ -36,6 +37,7 @@ let rec g env knmap = function (* インライン展開ルーチン本体 (caml2html: inline_
 	  zs
 	  ys in
       Alpha.g env' e
+     end else expr
   | LetTuple(xts, y, e) -> LetTuple(xts, y, g env knmap e)
   | e -> e
 

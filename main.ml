@@ -150,6 +150,7 @@ let () = (* ここからコンパイラの実行が開始される (caml2html: main_entry) *)
     ;("-glib", Arg.String(fun i -> glib := !glib @ [i]), "path to libary form (*.ml)")
     ;("-i", Arg.Unit(fun () -> inter := true), "emit IR (to *-inter.s)")
     ;("-v", Arg.Unit(fun () -> verbose := true), "verbose information")
+    ;("-finv", Arg.Unit(fun () -> KNormal.finv := true), "use software implementation of finv")
     ]
     (fun s -> files := !files @ [s])
     ("Mitou Min-Caml Compiler (C) Eijiro Sumii\n" ^
@@ -167,6 +168,7 @@ let () = (* ここからコンパイラの実行が開始される (caml2html: main_entry) *)
    ;("atan", Type.Fun ([Type.Float], Type.Float))
    ;("sqrt", Type.Fun ([Type.Float], Type.Float))
    ;("floor", Type.Fun ([Type.Float], Type.Float))
+   ;("finv", Type.Fun ([Type.Float], Type.Float))
    ]
   M.empty;
   let vardec = ref [] in

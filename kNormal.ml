@@ -27,6 +27,7 @@ type t = (* K正規化後の式 (caml2html: knormal_t) *)
   | ExtVar of Id.t * Type.t
   | ExtFunApp of Id.t * Id.t list
 and fundef = { name : Id.t * Type.t; args : (Id.t * Type.t) list; body : t }
+let finv = ref false
 
 let rec fv = function (* 式に出現する（自由な）変数 (caml2html: knormal_fv) *)
   | Unit | Int(_) | Float(_) | ExtArray(_) | ExtVar _ -> S.empty
@@ -88,6 +89,9 @@ let rec g env = function (* K正規化ルーチン本体 (caml2html: knormal_g) *)
 	(fun x -> insert_let (g env e2)
 	    (fun y -> FMul(x, y), Type.Float))
   | Syntax.FDiv(e1, e2) ->
+      if !finv then
+        g env (Syntax.FMul(e1, Syntax.App (Syntax.Var "finv", [e2]))) (* Use software finv instead of fdiv instruction *)
+      else
       insert_let (g env e1)
 	(fun x -> insert_let (g env e2)
 	    (fun y -> FDiv(x, y), Type.Float))
