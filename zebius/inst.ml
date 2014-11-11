@@ -77,6 +77,17 @@ let freg_of_string str =
     else sub (n+1)
   in sub 0
 
+(* size of instruction in words(2 bytes) *)
+let size = function
+  | Pseudo (ABC _) -> 5
+  | Label _ -> 0
+  | Align   -> 0
+  | DataI _ -> 2
+  | DataL _ -> 2
+  | Bra _ | Jmp _ | Jsr _ | Rts -> 2
+  | ExtFile _ -> 1000000 (* infinite *)
+  | Comment _ -> 0
+  | _ -> 1
 
 let mov r1 r2 = MovR (reg_of_string r1, reg_of_string r2)
 let fmov r1 r2 = FMov (freg_of_string r1, freg_of_string r2)
@@ -89,19 +100,33 @@ let filter_queue p queue =
 let list_of_queue q = List.rev (Queue.fold (fun x y -> y :: x) [] q)
 let rec times n f x = if n <= 0 then x else times (n-1) f (f x)
 
-let replace_abc b lbl : zebius_inst list =
-  let tmp1 = Id.genid "._iftmp1" in
-  let tmp2 = Id.genid "._iftmp2" in
-  [ BC (b, tmp1)
-  ; Bra tmp2
-  ; Label tmp1
-  ; Bra lbl
-  ; Label tmp2
-  ]
 
+(* This function look for @lbl@ and returns the address of the label wrapped with Some. If not found, this returns None. *)
+let rec search_label lbl (ls : zebius_inst list) : int option = match ls with
+  | [] -> None
+  | Label x :: _ when x = lbl -> Some 0
+  | x :: y -> match search_label lbl y with
+    | None -> None
+    | Some d -> Some (size x + d)
+
+
+let replace_abc b lbl rest : zebius_inst list =
+  let Some dist = search_label lbl rest in (* look for following instructions *)
+  if dist <= 60 then
+     [ BC (b, lbl) ]
+  else begin
+    let tmp1 = Id.genid "._iftmp1" in
+    let tmp2 = Id.genid "._iftmp2" in
+    [ BC (b, tmp1)
+    ; Bra tmp2
+    ; Label tmp1
+    ; Bra lbl
+    ; Label tmp2
+    ]
+  end
 let pseudo_one newq ls = match ls with
   | Pseudo (ABC (b, lbl)) :: rest ->
-    List.iter (fun x -> Queue.add x newq) (replace_abc b lbl); rest
+    List.iter (fun x -> Queue.add x newq) (replace_abc b lbl rest); rest
   | x :: y -> Queue.add x newq; y
   | [] -> failwith "error:pseudo_one"
 
