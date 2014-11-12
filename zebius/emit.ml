@@ -239,7 +239,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       end else
 	(if x <> y then emit_inst (fmov y x);
 	 emit_inst (FOp (FDiv, freg_of_string z, freg_of_string x)))
-  | (NonTail x, ExtOp (FSqrt y)) ->
+  | (NonTail x, ExtOp (Asm.FSqrt y)) ->
       if x <> y then emit_inst (fmov y x);
       emit_inst (FSqrt (freg_of_string x))
   | (NonTail x, ExtOp (FToI y)) ->
