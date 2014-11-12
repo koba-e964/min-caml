@@ -241,7 +241,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
 	 emit_inst (FOp (FDiv, freg_of_string z, freg_of_string x)))
   | (NonTail x, ExtOp (Asm.FSqrt y)) ->
       if x <> y then emit_inst (fmov y x);
-      emit_inst (FSqrt (freg_of_string x))
+      emit_inst (Inst.FSqrt (freg_of_string x))
   | (NonTail x, ExtOp (FToI y)) ->
       emit_inst (FtrcFpul (freg_of_string y));
       emit_inst (StsFpul (reg_of_string x))
@@ -274,7 +274,7 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
   | Tail, (Asm.Set _ | Asm.SetL _ | Asm.Mov _ | Asm.Neg _ | Asm.Add _ | Asm.Sub _ | Asm.Arith _ | Asm.Ld _ | ExtOp (FToI _) as exp) ->
       g' oc (NonTail(regs.(0)), exp);
       rts oc
-  | Tail, (SetF _ | FMovD _ | FNegD _ | FAddD _ | FSubD _ | FMulD _ | FDivD _ | LdF _ | ExtOp (FSqrt _) | ExtOp (IToF _) as exp) ->
+  | Tail, (SetF _ | FMovD _ | FNegD _ | FAddD _ | FSubD _ | FMulD _ | FDivD _ | LdF _ | ExtOp (Asm.FSqrt _) | ExtOp (IToF _) as exp) ->
       g' oc (NonTail(fregs.(0)), exp);
       rts oc
   | Tail, (Restore(x) as exp) ->
