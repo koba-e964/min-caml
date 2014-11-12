@@ -3,6 +3,7 @@
 open Asm
 
 let data = ref [] (* 浮動小数点数の定数テーブル (caml2html: virtual_data) *)
+let fsqrt = ref true
 
 let classify xts ini addf addi =
   List.fold_left
@@ -123,7 +124,10 @@ let rec g env = function (* 式の仮想マシンコード生成 (caml2html: virtual_g) *)
   | Closure.AppDir(Id.L(x), (y :: _ as ys)) when x = "min_caml_float_of_int" && List.length ys = 1 ->
      Ans (ExtOp (IToF y))
   | Closure.AppDir(Id.L(x), (y :: _ as ys)) when x = "min_caml_sqrt" && List.length ys = 1 ->
-     Ans (ExtOp (FSqrt y))
+     if !fsqrt then
+       Ans (CallDir (Id.L "min_caml_fsqrt_software", [], [y]))
+     else
+       Ans (ExtOp (FSqrt y))
   | Closure.AppDir(Id.L(x), ys) ->
       let (int, float) = separate (List.map (fun y -> (y, M.find y env)) ys) in
       Ans(CallDir(Id.L(x), int, float))

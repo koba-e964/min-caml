@@ -151,6 +151,7 @@ let () = (* ここからコンパイラの実行が開始される (caml2html: main_entry) *)
     ;("-i", Arg.Unit(fun () -> inter := true), "emit IR (to *-inter.s)")
     ;("-v", Arg.Unit(fun () -> verbose := true), "verbose information")
     ;("-finv", Arg.Unit(fun () -> KNormal.finv := true), "use software implementation of finv")
+    ;("-fsqrt", Arg.Unit(fun () -> Virtual.fsqrt := true), "use software implementation of fsqrt")
     ]
     (fun s -> files := !files @ [s])
     ("Mitou Min-Caml Compiler (C) Eijiro Sumii\n" ^
