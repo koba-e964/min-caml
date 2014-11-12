@@ -239,6 +239,17 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       end else
 	(if x <> y then emit_inst (fmov y x);
 	 emit_inst (FOp (FDiv, freg_of_string z, freg_of_string x)))
+  | (NonTail x, ExtOp (FSqrt y)) ->
+      if x <> y then emit_inst (fmov y x);
+      emit_inst (FSqrt (freg_of_string x))
+  | (NonTail x, ExtOp (FToI y)) ->
+      emit_inst (FtrcFpul (freg_of_string y));
+      emit_inst (StsFpul (reg_of_string x))
+  | (NonTail x, ExtOp (IToF y)) ->
+      emit_inst (LdsFpul (reg_of_string y));
+      emit_inst (FloatFpul (freg_of_string x))
+  | (NonTail _, ExtOp (PrintChar y)) ->
+      emit_inst (Write (reg_of_string y))
   | NonTail(x), LdF(y) -> emit_inst (FLoad (reg_of_string y, freg_of_string x))
   | NonTail(_), StF(x, y) -> emit_inst (FStore (freg_of_string x, reg_of_string y))
   | NonTail(_), Asm.Comment(s) -> emit_inst (Inst.Comment s)
@@ -257,13 +268,13 @@ and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)
       assert (List.mem x allfregs);
       load_disp_float oc (offset y) reg_sp x
   (* 末尾だったら計算結果を第一レジスタにセットしてret (caml2html: emit_tailret) *)
-  | Tail, (Nop | St _ | StF _ | Asm.Comment _ | Save _ as exp) ->
+  | Tail, (Nop | St _ | StF _ | Asm.Comment _ | Save _ | ExtOp (PrintChar _) as exp) ->
       g' oc (NonTail(Id.gentmp Type.Unit), exp);
       rts oc
-  | Tail, (Asm.Set _ | Asm.SetL _ | Asm.Mov _ | Asm.Neg _ | Asm.Add _ | Asm.Sub _ | Asm.Arith _ | Asm.Ld _ as exp) ->
+  | Tail, (Asm.Set _ | Asm.SetL _ | Asm.Mov _ | Asm.Neg _ | Asm.Add _ | Asm.Sub _ | Asm.Arith _ | Asm.Ld _ | ExtOp (FToI _) as exp) ->
       g' oc (NonTail(regs.(0)), exp);
       rts oc
-  | Tail, (SetF _ | FMovD _ | FNegD _ | FAddD _ | FSubD _ | FMulD _ | FDivD _ | LdF _  as exp) ->
+  | Tail, (SetF _ | FMovD _ | FNegD _ | FAddD _ | FSubD _ | FMulD _ | FDivD _ | LdF _ | ExtOp (FSqrt _) | ExtOp (IToF _) as exp) ->
       g' oc (NonTail(fregs.(0)), exp);
       rts oc
   | Tail, (Restore(x) as exp) ->

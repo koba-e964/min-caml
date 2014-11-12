@@ -33,6 +33,12 @@ and exp =
   | CallDir of Id.l * Id.t list * Id.t list
   | Save of Id.t * Id.t (* レジスタ変数の値をスタック変数へ保存 *)
   | Restore of Id.t (* スタック変数から値を復元 *)
+  | ExtOp of extop
+and extop =
+  | IToF of Id.t (* int_of_float *)
+  | FSqrt of Id.t
+  | FToI of Id.t (* float_of_int *)
+  | PrintChar of Id.t
 type vardef = { vname : Id.l; vtype : Type.t; vbody : t }
 type fundef = { name : Id.l; args : Id.t list; fargs : Id.t list; body : t; ret : Type.t }
 type prog = Prog of (Id.l * float) list * vardef list * fundef list * t

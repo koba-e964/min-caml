@@ -35,6 +35,12 @@ and exp = (* 一つ一つの命令に対応する式 (caml2html: sparcasm_exp) *)
   | CallDir of Id.l * Id.t list * Id.t list
   | Save of Id.t * Id.t (* レジスタ変数の値をスタック変数へ保存 (caml2html: sparcasm_save) *)
   | Restore of Id.t (* スタック変数から値を復元 (caml2html: sparcasm_restore) *)
+  | ExtOp of extop
+and extop =
+  | IToF of Id.t (* int_of_float *)
+  | FSqrt of Id.t
+  | FToI of Id.t (* float_of_int *)
+  | PrintChar of Id.t
 type vardef = { vname : Id.l; vtype : Type.t; vbody : t }
 type fundef = { name : Id.l; args : Id.t list; fargs : Id.t list; body : t; ret : Type.t }
 (* プログラム全体 = 浮動小数点数テーブル + トップレベル関数 + メインの式 (caml2html: sparcasm_prog) *)
@@ -67,8 +73,8 @@ let rec remove_and_uniq xs = function
 let fv_id_or_imm = function V(x) -> [x] | _ -> []
 let rec fv_exp = function
   | Nop | Set(_) | SetF _ | SetL(_) | Comment(_) | Restore(_) -> []
-  | Mov(x) | Neg(x) | FMovD(x) | FNegD(x) | Save(x, _)  | Ld x | LdF x | Arith (_, x,_) -> [x]
-  | Add(x, y') -> x :: fv_id_or_imm y'
+  | Mov(x) | Neg(x) | FMovD(x) | FNegD(x) | Save(x, _)  | Ld x | LdF x | ExtOp (PrintChar x | FToI x | IToF x | FSqrt x) -> [x]
+  | Add(x, y') | Arith (_, x, y') -> x :: fv_id_or_imm y'
   | St(x, y) | StF(x, y) | Sub(x, y) | FAddD(x, y) | FSubD(x, y) | FMulD(x, y) | FDivD(x, y) -> [x; y]
   | IfEq(x, y', e1, e2) | IfLE(x, y', e1, e2) -> x :: y' :: remove_and_uniq S.empty (fv e1 @ fv e2) (* uniq here just for efficiency *)
   | IfFEq(x, y, e1, e2) | IfFLE(x, y, e1, e2) -> x :: y :: remove_and_uniq S.empty (fv e1 @ fv e2) (* uniq here just for efficiency *)
@@ -126,6 +132,10 @@ and show_exp x = match x with
   | CallDir (Id.L idl, ls1, ls2) -> "call_dir " ^ idl ^ List.fold_left (fun x y -> x ^ "," ^ y) "" (ls1 @ ls2)
   | Save (id1, id2) -> "save " ^ id1 ^ ", " ^ id2
   | Restore id -> "restore " ^ id
+  | ExtOp (PrintChar id) -> "print_char " ^ id
+  | ExtOp (FToI id) -> "ftoi " ^ id
+  | ExtOp (IToF id) -> "itof " ^ id
+  | ExtOp (FSqrt id) -> "fsqrt " ^ id
 and show_vardef { vname = Id.L n; vtype = ty; vbody = exp } =
   "vardef " ^ n ^ " : " ^ Type.show_type_t ty ^ " :=\n" ^ show_asm_t exp ^ "\n"
 and show_fundef f = match f with
