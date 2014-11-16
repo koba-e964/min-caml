@@ -3,7 +3,7 @@
 open Asm
 
 let data = ref [] (* 浮動小数点数の定数テーブル (caml2html: virtual_data) *)
-let fsqrt = ref true
+let fsqrt = ref false
 
 let classify xts ini addf addi =
   List.fold_left
