@@ -35,9 +35,7 @@ let emit_code outchan vardecs fundecs (clexp : Closure.t) : unit =
     print_endline (Asm.show_prog simm);
   end;
   if !inter then begin 
-    let ir = Closure.Prog (vardecs, fundecs, clexp) in
     let outchan = open_out (!outfile ^ "-inter.s") in
-    Printf.fprintf outchan "%s\n" (Closure.show_prog ir);
     Printf.fprintf outchan "%s\n" (Asm.show_prog simm);
     close_out outchan
   end;
