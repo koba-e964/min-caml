@@ -31,5 +31,11 @@ let h { name = l; args = xs; fargs = ys; body = e; ret = t } = (* トップレベル関
 let optimize_var { vname = x; vtype = ty; vbody = expr } =
   { vname = x; vtype = ty; vbody = g M.empty expr }
 
-let f (Prog(data, vardefs, fundefs, e)) = (* プログラム全体の即値最適化 *)
+let f_once (Prog(data, vardefs, fundefs, e)) = (* プログラム全体の即値最適化 *)
   Prog (data, List.map optimize_var vardefs, List.map h fundefs, g M.empty e)
+
+let rec f prog = 
+  let prog_s = f_once prog in
+  if prog_s = prog then prog
+  else f prog_s
+
