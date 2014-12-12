@@ -46,6 +46,7 @@ type zek_inst =
   | Subl of reg * reg_or_imm * reg
   | Cmp of cmp * reg * reg_or_imm * reg
   | Label of label
+  | Comment of string
   | ExtFile of string
 
 let show_zek_inst = function
@@ -63,6 +64,7 @@ let show_zek_inst = function
   | Subl (a, b, c) -> "\tSUBL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
   | Cmp (op, a, b, c) -> "\tCMP" ^ show_cmp op ^ "\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
   | Label l -> l
+  | Comment s -> "    # " ^ s ^ "\n"
   | ExtFile _ -> failwith "show_zek_inst for ExtFile"
 let emit_inst oc = function
   | ExtFile lib ->
@@ -83,4 +85,5 @@ let emit_inst oc = function
 let emit oc code = 
   Queue.iter (emit_inst oc) code
 
+let mov src dest = Lda (dest, 0, src)
 

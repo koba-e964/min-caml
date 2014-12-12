@@ -39,6 +39,11 @@ let reg_of_string r =
   if is_reg r
   then Reg (int_of_string (String.sub r 2 (String.length r - 2)))
   else failwith "invalid regname" 
+
+let rsp = Reg 30
+let rtmp = Reg 28
+let rlr = Reg 29
+
 let ri_of_ri r = match r with
   | V x ->
     if is_reg x
@@ -74,13 +79,15 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
     (* 末尾でなかったら計算結果を dest にセット *)
   | (NonTail(_), Nop) -> ()
   | (NonTail(x), Li(i)) when i >= -32768 && i < 32768 -> 
-      Printf.fprintf oc "\tli\t%s, %d\n" (reg x) i
+      (* Printf.fprintf oc "\tli\t%s, %d\n" (reg x) i *)
+      emit_inst (Lda (reg_of_string x, i, Reg 31))
   | (NonTail(x), Li(i)) ->
       let n = i lsr 16 in
       let m = i lxor (n lsl 16) in
-      let r = reg x in
-	Printf.fprintf oc "\tlis\t%s, %d\n" r n;
-	Printf.fprintf oc "\tori\t%s, %s, %d\n" r r m
+      let r = reg_of_string x in
+        emit_inst (Lda (r, n, Reg 31));
+        emit_inst (Ldah (r, m, r))
+        
   | (NonTail(x), FLi(Id.L(l))) ->
       let s = load_label reg_tmp l in
       Printf.fprintf oc "%s\tlfd\t%s, 0(%s)\n" s (reg x) reg_tmp
@@ -101,11 +108,13 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(x), Lwz(y, V(z))) ->
       Printf.fprintf oc "\tlwzx\t%s, %s, %s\n" (reg x) (reg y) (reg z)
   | (NonTail(x), Lwz(y, C(z))) -> 
-      Printf.fprintf oc "\tlwz\t%s, %d(%s)\n" (reg x) z (reg y)
+      (* Printf.fprintf oc "\tlwz\t%s, %d(%s)\n" (reg x) z (reg y) *)
+      emit_inst (Ldl (reg_of_string x, z, reg_of_string y));
   | (NonTail(_), Stw(x, y, V(z))) ->
       Printf.fprintf oc "\tstwx\t%s, %s, %s\n" (reg x) (reg y) (reg z)
   | (NonTail(_), Stw(x, y, C(z))) -> 
-      Printf.fprintf oc "\tstw\t%s, %d(%s)\n" (reg x) z (reg y)
+      (* Printf.fprintf oc "\tstw\t%s, %d(%s)\n" (reg x) z (reg y) *)
+      emit_inst (Stl (reg_of_string x, z, reg_of_string y));
   | (NonTail(x), FMr(y)) when x = y -> ()
   | (NonTail(x), FMr(y)) -> Printf.fprintf oc "\tfmr\t%s, %s\n" (reg x) (reg y)
   | (NonTail(x), FNeg(y)) -> 
@@ -139,7 +148,8 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(_), Save(x, y)) -> assert (S.mem y !stackset); ()
   (* 復帰の仮想命令の実装 *)
   | (NonTail(x), Restore(y)) when List.mem x allregs ->
-      Printf.fprintf oc "\tlwz\t%s, %d(%s)\n" (reg x) (offset y) reg_sp
+      (* Printf.fprintf oc "\tlwz\t%s, %d(%s)\n" (reg x) (offset y) reg_sp *)
+      emit_inst (Ldl (reg_of_string x, offset y, rsp))
   | (NonTail(x), Restore(y)) ->
       assert (List.mem x allfregs);
       Printf.fprintf oc "\tlfd\t%s, %d(%s)\n" (reg x) (offset y) reg_sp
@@ -150,11 +160,11 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (Tail, (Li _ | SetL _ | Mr _ | Neg _ | Add _ | Sub _ | Slw _ |
             Lwz _ as exp)) -> 
       g' oc (NonTail(regs.(0)), exp);
-      Printf.fprintf oc "\tblr\n";
+      emit_inst (Ret (Reg 29, Reg 29))
   | (Tail, (FLi _ | FMr _ | FNeg _ | FAdd _ | FSub _ | FMul _ | FDiv _ |
             Lfd _ as exp)) ->
       g' oc (NonTail(fregs.(0)), exp);
-      Printf.fprintf oc "\tblr\n";
+      emit_inst (Ret (Reg 29, Reg 29))
   | (Tail, (Restore(x) as exp)) ->
       (match locate x with
 	 | [i] -> g' oc (NonTail(regs.(0)), exp)
@@ -211,18 +221,23 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" "bgt"
   (* 関数呼び出しの仮想命令の実装 *)
   | (Tail, CallCls(x, ys, zs)) -> (* 末尾呼び出し *)
+      failwith "not yet implemented (callcls)";
       g'_args oc [(x, reg_cl)] ys zs;
-      Printf.fprintf oc "\tlwz\t%s, 0(%s)\n" (reg reg_sw) (reg reg_cl);
+      (* Printf.fprintf oc "\tlwz\t%s, 0(%s)\n" (reg reg_sw) (reg reg_cl); *)
+      emit_inst (Ldl (reg_of_string reg_sw, 0, reg_of_string reg_cl));
       Printf.fprintf oc "\tmtctr\t%s\n\tbctr\n" (reg reg_sw);
   | (Tail, CallDir(Id.L(x), ys, zs)) -> (* 末尾呼び出し *)
       g'_args oc [] ys zs;
-      Printf.fprintf oc "\tb\t%s\n" x
+      (* Printf.fprintf oc "\tb\t%s\n" x *)
+      emit_inst (Br (rtmp, x))
   | (NonTail(a), CallCls(x, ys, zs)) ->
+      failwith "not yet implemented (callcls)";
       Printf.fprintf oc "\tmflr\t%s\n" reg_tmp;
       g'_args oc [(x, reg_cl)] ys zs;
       let ss = stacksize () in
 	Printf.fprintf oc "\tstw\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp;
-	Printf.fprintf oc "\taddi\t%s, %s, %d\n" reg_sp reg_sp ss;
+	(* Printf.fprintf oc "\taddi\t%s, %s, %d\n" reg_sp reg_sp ss; *)
+        emit_inst (Addl (rsp, RIImm ss, rsp));
 	Printf.fprintf oc "\tlwz\t%s, 0(%s)\n" reg_tmp (reg reg_cl);
 	Printf.fprintf oc "\tmtctr\t%s\n" reg_tmp;
 	Printf.fprintf oc "\tbctrl\n";
@@ -238,13 +253,17 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       g'_args oc [] ys zs;
       let ss = stacksize () in
 	Printf.fprintf oc "\tstw\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp;
-	Printf.fprintf oc "\taddi\t%s, %s, %d\n" reg_sp reg_sp ss;
+	(* Printf.fprintf oc "\taddi\t%s, %s, %d\n" reg_sp reg_sp ss; *)
+        emit_inst (Addl (rsp, RIImm ss, rsp));
 	(* Printf.fprintf oc "\tbl\t%s\n" x; *)
-        emit_inst (Bsr (Reg 30, x));
-	Printf.fprintf oc "\tsubi\t%s, %s, %d\n" reg_sp reg_sp ss;
-	Printf.fprintf oc "\tlwz\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp;
+        emit_inst (Bsr (Reg 29, x));
+	(* Printf.fprintf oc "\tsubi\t%s, %s, %d\n" reg_sp reg_sp ss; *)
+        emit_inst (Subl (rsp, RIImm ss, rsp));
+	(* Printf.fprintf oc "\tlwz\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp; *)
+        emit_inst (Ldl (rtmp, ss - 4, rsp));
 	(if List.mem a allregs && a <> regs.(0) then
-	   Printf.fprintf oc "\tmr\t%s, %s\n" (reg a) (reg regs.(0))
+	   (* Printf.fprintf oc "\tmr\t%s, %s\n" (reg a) (reg regs.(0)) *)
+           emit_inst (Inst.mov (reg_of_string a) (Reg 0))
 	 else if List.mem a allfregs && a <> fregs.(0) then
 	   Printf.fprintf oc "\tfmr\t%s, %s\n" (reg a) (reg fregs.(0)));
 	Printf.fprintf oc "\tmtlr\t%s\n" reg_tmp
@@ -280,7 +299,7 @@ and g'_args oc x_reg_cl ys zs =
       (fun (i, yrs) y -> (i + 1, (y, regs.(i)) :: yrs))
       (0, x_reg_cl) ys in
     List.iter
-      (fun (y, r) -> Printf.fprintf oc "\tmr\t%s, %s\n" (reg r) (reg y))
+      (fun (y, r) -> emit_inst (Inst.mov (reg_of_string r) (reg_of_string y)))
       (shuffle reg_sw yrs);
     let (d, zfrs) = 
       List.fold_left
@@ -299,23 +318,14 @@ let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
 
 let f oc asmlib (Prog(data, fundefs, e)) =
   Format.eprintf "generating assembly...@.";
-  List.iter (fun fundef -> h oc fundef) fundefs;
-  Printf.fprintf oc "\tmflr\tr0\n";
-  Printf.fprintf oc "\tstmw\tr30, -8(r1)\n";
-  Printf.fprintf oc "\tstw\tr0, 8(r1)\n";
-  Printf.fprintf oc "\tstwu\tr1, -96(r1)\n";
-  Printf.fprintf oc "   # main program start\n";
+  emit_inst (Inst.Comment "main program start");
   stackset := S.empty;
   stackmap := [];
   g oc (NonTail("_R_0"), e);
-
-  Printf.fprintf oc "   # main program end\n";
-(*  Printf.fprintf oc "\tmr\tr3, %s\n" regs.(0); *)
-  Printf.fprintf oc "\tlwz\tr1, 0(r1)\n";
-  Printf.fprintf oc "\tlwz\tr0, 8(r1)\n";
-  Printf.fprintf oc "\tmtlr\tr0\n";
-  Printf.fprintf oc "\tlmw\tr30, -8(r1)\n";
-  Printf.fprintf oc "\tblr\n";
+  emit_inst (Inst.Comment "main program end");
+  emit_inst (Br (Reg 30, "min_caml_main_end"));
+  List.iter (fun fundef -> h oc fundef) fundefs;
   emit_inst (ExtFile asmlib);
+  emit_inst (Label "min_caml_main_end");
   emit oc insts;
 
