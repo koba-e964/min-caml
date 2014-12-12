@@ -239,7 +239,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       let ss = stacksize () in
 	Printf.fprintf oc "\tstw\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp;
 	Printf.fprintf oc "\taddi\t%s, %s, %d\n" reg_sp reg_sp ss;
-	Printf.fprintf oc "\tbl\t%s\n" x;
+	(* Printf.fprintf oc "\tbl\t%s\n" x; *)
         emit_inst (Bsr (Reg 30, x));
 	Printf.fprintf oc "\tsubi\t%s, %s, %d\n" reg_sp reg_sp ss;
 	Printf.fprintf oc "\tlwz\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp;
@@ -253,7 +253,8 @@ and g'_tail_if oc e1 e2 b bn =
     Printf.fprintf oc "\t%s\tcr7, %s\n" bn b_else;
     let stackset_back = !stackset in
       g oc (Tail, e1);
-      Printf.fprintf oc "%s:\n" b_else;
+      (* Printf.fprintf oc "%s:\n" b_else; *)
+      emit_inst (Label b_else);
       stackset := stackset_back;
       g oc (Tail, e2)
 and g'_non_tail_if oc dest e1 e2 b bn = 
@@ -263,11 +264,14 @@ and g'_non_tail_if oc dest e1 e2 b bn =
     let stackset_back = !stackset in
       g oc (dest, e1);
       let stackset1 = !stackset in
-	Printf.fprintf oc "\tb\t%s\n" b_cont;
-	Printf.fprintf oc "%s:\n" b_else;
+	(* Printf.fprintf oc "\tb\t%s\n" b_cont; *)
+        emit_inst (Br (Reg 30, b_cont));
+	(* Printf.fprintf oc "%s:\n" b_else; *)
+        emit_inst (Label b_else);
 	stackset := stackset_back;
 	g oc (dest, e2);
-	Printf.fprintf oc "%s:\n" b_cont;
+	(* Printf.fprintf oc "%s:\n" b_cont; *)
+        emit_inst (Label b_cont);
 	let stackset2 = !stackset in
 	  stackset := S.inter stackset1 stackset2
 and g'_args oc x_reg_cl ys zs = 
@@ -287,7 +291,8 @@ and g'_args oc x_reg_cl ys zs =
 	(shuffle reg_fsw zfrs)
 
 let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
-  Printf.fprintf oc "%s:\n" x;
+  (* Printf.fprintf oc "%s:\n" x; *)
+  emit_inst (Label x);
   stackset := S.empty;
   stackmap := [];
   g oc (Tail, e)

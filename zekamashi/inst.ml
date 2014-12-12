@@ -45,24 +45,25 @@ type zek_inst =
   | Addl of reg * reg_or_imm * reg
   | Subl of reg * reg_or_imm * reg
   | Cmp of cmp * reg * reg_or_imm * reg
+  | Label of label
   | ExtFile of string
 
 let show_zek_inst = function
-  | Lda (a, d, b) -> "LDA\t" ^ show_reg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
-  | Ldah (a, d, b) -> "LDAH\t" ^ show_reg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
-  | Ldl (a, d, b) -> "LDL\t" ^ show_reg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
-  | Stl (a, d, b) -> "STL\t" ^ show_reg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
-  | BC (c, a, d) -> show_cond c ^ "\t" ^ show_reg a ^ ", " ^ d
-  | Br (a, d) -> "BR\t" ^ show_reg a ^ ", " ^ d
-  | Bsr (a, d) -> "BSR\t" ^ show_reg a ^ ", " ^ d
-  | Jmp (a, b) -> "JMP\t" ^ show_reg a ^ ", (" ^ show_reg b ^ ")"
-  | Jsr (a, b) -> "JSR\t" ^ show_reg a ^ ", (" ^ show_reg b ^ ")"
-  | Ret (a, b) -> "RET\t" ^ show_reg a ^ ", (" ^ show_reg b ^ ")"
-  | Addl (a, b, c) -> "ADDL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
-  | Subl (a, b, c) -> "SUBL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
-  | Cmp (op, a, b, c) -> "CMP" ^ show_cmp op ^ "\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
-
-
+  | Lda (a, d, b) -> "\tLDA\t" ^ show_reg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
+  | Ldah (a, d, b) -> "\tLDAH\t" ^ show_reg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
+  | Ldl (a, d, b) -> "\tLDL\t" ^ show_reg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
+  | Stl (a, d, b) -> "\tSTL\t" ^ show_reg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
+  | BC (c, a, d) -> "\t" ^ show_cond c ^ "\t" ^ show_reg a ^ ", " ^ d
+  | Br (a, d) -> "\tBR\t" ^ show_reg a ^ ", " ^ d
+  | Bsr (a, d) -> "\tBSR\t" ^ show_reg a ^ ", " ^ d
+  | Jmp (a, b) -> "\tJMP\t" ^ show_reg a ^ ", (" ^ show_reg b ^ ")"
+  | Jsr (a, b) -> "\tJSR\t" ^ show_reg a ^ ", (" ^ show_reg b ^ ")"
+  | Ret (a, b) -> "\tRET\t" ^ show_reg a ^ ", (" ^ show_reg b ^ ")"
+  | Addl (a, b, c) -> "\tADDL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
+  | Subl (a, b, c) -> "\tSUBL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
+  | Cmp (op, a, b, c) -> "\tCMP" ^ show_cmp op ^ "\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
+  | Label l -> l
+  | ExtFile _ -> failwith "show_zek_inst for ExtFile"
 let emit_inst oc = function
   | ExtFile lib ->
     if lib <> "" then begin
