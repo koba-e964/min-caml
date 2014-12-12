@@ -1,4 +1,5 @@
 open Asm
+open Inst
 
 let gethi (x : float) : int32 = Int32.shift_right_logical (Int32.bits_of_float x) 16
 let getlo (x : float) : int32 = Int32.logand (Int32.bits_of_float x) (Int32.of_int 0xffff)
@@ -24,10 +25,28 @@ let locate x =
 let offset x = 4 * List.hd (locate x)
 let stacksize () = align ((List.length !stackmap + 1) * 4)
 
+let insts = Queue.create ()
+
+let emit_inst (inst : zek_inst) = Queue.add inst insts
+
+
 let reg r = 
-  if is_reg r 
+  if is_reg r
   then String.sub r 1 (String.length r - 1)
   else r 
+
+let reg_of_string r = 
+  if is_reg r
+  then Reg (int_of_string (String.sub r 2 (String.length r - 2)))
+  else failwith "invalid regname" 
+let ri_of_ri r = match r with
+  | V x ->
+    if is_reg x
+    then RIReg (int_of_string (String.sub x 2 (String.length x - 2)))
+    else failwith "invalid regname"
+  | C i -> RIImm i
+
+
 
 let load_label r label =
   "\tlis\t" ^ (reg r) ^ ", ha16(" ^ label ^ ")\n" ^
@@ -71,14 +90,10 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(x), Mr(y)) when x = y -> ()
   | (NonTail(x), Mr(y)) -> Printf.fprintf oc "\tmr\t%s, %s\n" (reg x) (reg y)
   | (NonTail(x), Neg(y)) -> Printf.fprintf oc "\tneg\t%s, %s\n" (reg x) (reg y)
-  | (NonTail(x), Add(y, V(z))) -> 
-      Printf.fprintf oc "\tadd\t%s, %s, %s\n" (reg x) (reg y) (reg z)
-  | (NonTail(x), Add(y, C(z))) -> 
-      Printf.fprintf oc "\taddi\t%s, %s, %d\n" (reg x) (reg y) z
-  | (NonTail(x), Sub(y, V(z))) -> 
-      Printf.fprintf oc "\tsub\t%s, %s, %s\n" (reg x) (reg y) (reg z)
-  | (NonTail(x), Sub(y, C(z))) -> 
-      Printf.fprintf oc "\tsubi\t%s, %s, %d\n" (reg x) (reg y) z
+  | (NonTail(x), Add (y, z)) -> 
+      emit_inst (Addl (reg_of_string y, ri_of_ri z, reg_of_string x))
+  | (NonTail(x), Sub (y, z)) -> 
+      emit_inst (Subl (reg_of_string y, ri_of_ri z, reg_of_string x))
   | (NonTail(x), Slw(y, V(z))) -> 
       Printf.fprintf oc "\tslw\t%s, %s, %s\n" (reg x) (reg y) (reg z)
   | (NonTail(x), Slw(y, C(z))) -> 
@@ -225,6 +240,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
 	Printf.fprintf oc "\tstw\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp;
 	Printf.fprintf oc "\taddi\t%s, %s, %d\n" reg_sp reg_sp ss;
 	Printf.fprintf oc "\tbl\t%s\n" x;
+        emit_inst (Bsr (Reg 30, x));
 	Printf.fprintf oc "\tsubi\t%s, %s, %d\n" reg_sp reg_sp ss;
 	Printf.fprintf oc "\tlwz\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp;
 	(if List.mem a allregs && a <> regs.(0) then
@@ -278,20 +294,7 @@ let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
 
 let f oc asmlib (Prog(data, fundefs, e)) =
   Format.eprintf "generating assembly...@.";
-  (if data <> [] then
-    (Printf.fprintf oc "\t.data\n\t.literal8\n";
-     List.iter
-       (fun (Id.L(x), d) ->
-	 Printf.fprintf oc "\t.align 3\n";
-	 Printf.fprintf oc "%s:\t # %f\n" x d;
-	 Printf.fprintf oc "\t.long\t%ld\n" (gethi d);
-	 Printf.fprintf oc "\t.long\t%ld\n" (getlo d))
-       data));
-  Printf.fprintf oc "\t.text\n";
-  Printf.fprintf oc "\t.globl  _min_caml_start\n";
-  Printf.fprintf oc "\t.align 2\n";
   List.iter (fun fundef -> h oc fundef) fundefs;
-  Printf.fprintf oc "_min_caml_start: # main entry point\n";
   Printf.fprintf oc "\tmflr\tr0\n";
   Printf.fprintf oc "\tstmw\tr30, -8(r1)\n";
   Printf.fprintf oc "\tstw\tr0, 8(r1)\n";
@@ -308,16 +311,6 @@ let f oc asmlib (Prog(data, fundefs, e)) =
   Printf.fprintf oc "\tmtlr\tr0\n";
   Printf.fprintf oc "\tlmw\tr30, -8(r1)\n";
   Printf.fprintf oc "\tblr\n";
-  if asmlib <> "" then
-    let ic = open_in asmlib in
-    begin try
-      while true do
-        let line = input_line ic in
-        Printf.fprintf oc "%s\n" line;
-      done
-    with  | End_of_file ->  close_in ic
-          | e ->
-      close_in_noerr ic;
-      raise e
-    end
+  emit_inst (ExtFile asmlib);
+  emit oc insts;
 
