@@ -105,3 +105,6 @@ let rec concat e1 xt e2 = match e1 with
 
 (* align : int -> int *)
 let align i = if i mod 8 = 0 then i else i + 4
+
+let show_prog _ = "Asm.show_prog is not yet implemented."
+

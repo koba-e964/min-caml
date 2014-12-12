@@ -1,7 +1,7 @@
 open Asm
 
-external gethi : float -> int32 = "gethi"
-external getlo : float -> int32 = "getlo"
+let gethi (x : float) : int32 = Int32.shift_right_logical (Int32.bits_of_float x) 16
+let getlo (x : float) : int32 = Int32.logand (Int32.bits_of_float x) (Int32.of_int 0xffff)
 
 let stackset = ref S.empty (* すでに Save された変数の集合 *)
 let stackmap = ref [] (* Save された変数のスタックにおける位置 *)
@@ -276,7 +276,7 @@ let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
   stackmap := [];
   g oc (Tail, e)
 
-let f oc (Prog(data, fundefs, e)) =
+let f oc asmlib (Prog(data, fundefs, e)) =
   Format.eprintf "generating assembly...@.";
   (if data <> [] then
     (Printf.fprintf oc "\t.data\n\t.literal8\n";
@@ -300,10 +300,24 @@ let f oc (Prog(data, fundefs, e)) =
   stackset := S.empty;
   stackmap := [];
   g oc (NonTail("_R_0"), e);
+
   Printf.fprintf oc "   # main program end\n";
 (*  Printf.fprintf oc "\tmr\tr3, %s\n" regs.(0); *)
   Printf.fprintf oc "\tlwz\tr1, 0(r1)\n";
   Printf.fprintf oc "\tlwz\tr0, 8(r1)\n";
   Printf.fprintf oc "\tmtlr\tr0\n";
   Printf.fprintf oc "\tlmw\tr30, -8(r1)\n";
-  Printf.fprintf oc "\tblr\n"
+  Printf.fprintf oc "\tblr\n";
+  if asmlib <> "" then
+    let ic = open_in asmlib in
+    begin try
+      while true do
+        let line = input_line ic in
+        Printf.fprintf oc "%s\n" line;
+      done
+    with  | End_of_file ->  close_in ic
+          | e ->
+      close_in_noerr ic;
+      raise e
+    end
+
