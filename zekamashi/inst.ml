@@ -12,7 +12,7 @@ let show_ri = function
   | RIReg i -> "R" ^ string_of_int i
   | RIImm i -> string_of_int i
 
-type fop = FAdd | FSub | FMul | FDiv
+type fop = FOpAdd | FOpSub | FOpMul | FOpDiv
 type disp16 = int
 type disp21 = int
 type label = string
