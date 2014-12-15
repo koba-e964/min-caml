@@ -135,7 +135,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       Printf.fprintf oc "\tstfdx\t%s, %s, %s\n" (reg x) (reg y) (reg z)
   | (NonTail(_), Stfd(x, y, C(z))) ->
       Printf.fprintf oc "\tstfd\t%s, %d(%s)\n" (reg x) z (reg y)
-  | (NonTail(_), Comment(s)) -> Printf.fprintf oc "#\t%s\n" s
+  | (NonTail(_), Asm.Comment(s)) -> emit_inst (Inst.Comment s)
   (* 退避の仮想命令の実装 *)
   | (NonTail(_), Save(x, y))
       when List.mem x allregs && not (S.mem y !stackset) ->
@@ -156,7 +156,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       assert (List.mem x allfregs);
       Printf.fprintf oc "\tlfd\t%s, %d(%s)\n" (reg x) (offset y) reg_sp
   (* 末尾だったら計算結果を第一レジスタにセット *)
-  | (Tail, (Nop | Stw _ | Stfd _ | Comment _ | Save _ as exp)) ->
+  | (Tail, (Nop | Stw _ | Stfd _ | Asm.Comment _ | Save _ as exp)) ->
       g' oc (NonTail(Id.gentmp Type.Unit), exp);
       Printf.fprintf oc "\tblr\n";
   | (Tail, (Li _ | SetL _ | Mr _ | Neg _ | Add _ | Sub _ | Slw _ |
