@@ -7,7 +7,7 @@ type reg_or_imm =
   | RIReg of int
   | RIImm of int
 
-let show_reg (Reg i) = "R" ^ string_of_int i
+let show_reg (Reg i) = "$" ^ string_of_int i
 let show_ri = function
   | RIReg i -> "R" ^ string_of_int i
   | RIImm i -> string_of_int i
@@ -63,7 +63,7 @@ let show_zek_inst = function
   | Addl (a, b, c) -> "\tADDL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
   | Subl (a, b, c) -> "\tSUBL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
   | Cmp (op, a, b, c) -> "\tCMP" ^ show_cmp op ^ "\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
-  | Label l -> l
+  | Label l -> l ^ ":"
   | Comment s -> "    # " ^ s ^ "\n"
   | ExtFile _ -> failwith "show_zek_inst for ExtFile"
 let emit_inst oc = function

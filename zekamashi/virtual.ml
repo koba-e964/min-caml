@@ -44,6 +44,7 @@ let rec g env = function (* 式の仮想マシンコード生成 *)
   | Closure.Neg (x) -> Ans (Neg (x))
   | Closure.Add (x, y) -> Ans (Add (x, V (y)))
   | Closure.Sub (x, y) -> Ans (Sub (x, V (y)))
+  | Closure.Arith (op, x, y) -> failwith ("arith not supported: " ^ x ^ " op " ^ y)
   | Closure.FNeg (x) -> Ans (FNeg (x))
   | Closure.FAdd (x, y) -> Ans (FAdd (x, y))
   | Closure.FSub (x, y) -> Ans (FSub (x, y))
@@ -134,6 +135,7 @@ let rec g env = function (* 式の仮想マシンコード生成 *)
 		    Ans (Stw (z, x, V (offset)))) 
 	   | _ -> assert false)
   | Closure.ExtArray (Id.L(x)) -> Ans(SetL(Id.L("min_caml_" ^ x)))
+  | Closure.ExtVar _ -> failwith "extvar not supported"
 
 (* 関数の仮想マシンコード生成 *)
 let h { Closure.name = (Id.L(x), t); Closure.args = yts; 

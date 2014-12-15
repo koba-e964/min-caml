@@ -58,5 +58,6 @@ val concat : t -> Id.t * Type.t -> t -> t
 
 val align : int -> int
 
+val show_id_or_imm : id_or_imm -> string
 val show_prog : prog -> string
 

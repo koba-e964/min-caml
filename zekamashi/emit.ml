@@ -268,7 +268,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
 and g'_tail_if oc e1 e2 b bcond = 
   let b_else = Id.genid (b ^ "_else") in
     (* Printf.fprintf oc "\t%s\tcr7, %s\n" bn b_else; *)
-    emit_inst (BC (bcond, rtmp, b_else));
+    emit_inst (BC (NE, rtmp, b_else));
     let stackset_back = !stackset in
       g oc (Tail, e1);
       (* Printf.fprintf oc "%s:\n" b_else; *)
@@ -279,7 +279,7 @@ and g'_non_tail_if oc dest e1 e2 b bcond =
   let b_else = Id.genid (b ^ "_else") in
   let b_cont = Id.genid (b ^ "_cont") in
     (* Printf.fprintf oc "\t%s\tcr7, %s\n" bn b_else; *)
-    emit_inst (BC (bcond, rtmp, b_else));
+    emit_inst (BC (NE, rtmp, b_else));
     let stackset_back = !stackset in
       g oc (dest, e1);
       let stackset1 = !stackset in
@@ -327,5 +327,6 @@ let f oc asmlib (Prog(data, fundefs, e)) =
   List.iter (fun fundef -> h oc fundef) fundefs;
   emit_inst (ExtFile asmlib);
   emit_inst (Label "min_caml_main_end");
+  emit_inst (mov (Reg 0) (Reg 0));
   emit oc insts;
 
