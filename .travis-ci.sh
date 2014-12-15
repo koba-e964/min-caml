@@ -7,7 +7,7 @@ esac
 echo "yes" | sudo add-apt-repository ppa:$ppa
 sudo apt-get update -qq
 sudo apt-get install ocaml
-make min-caml
+make -f Makefile.${ARCH} min-caml
 # Currently, no tests are available.
 # make test
 
