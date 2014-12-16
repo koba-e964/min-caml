@@ -101,7 +101,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       emit_inst (Addl (reg_of_string y, ri_of_ri z, reg_of_string x))
   | (NonTail(x), Sub (y, z)) -> 
       emit_inst (Subl (reg_of_string y, ri_of_ri z, reg_of_string x))
-  | (NonTail(x), Arith (AMul, y, C 2)) ->
+  | (NonTail(x), Arith (Syntax.AMul, y, C 2)) ->
       let Reg ry = reg_of_string y in
       emit_inst (Addl (Reg ry, RIReg ry, reg_of_string x))
   | (NonTail(x), Arith (_, y, z)) -> 
@@ -164,7 +164,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (Tail, (Nop | Stw _ | Stfd _ | Asm.Comment _ | Save _ as exp)) ->
       g' oc (NonTail(Id.gentmp Type.Unit), exp);
       Printf.fprintf oc "\tblr\n";
-  | (Tail, (Li _ | SetL _ | Mr _ | Neg _ | Add _ | Sub _ | Slw _ |
+  | (Tail, (Li _ | SetL _ | Mr _ | Neg _ | Add _ | Sub _ | Arith _ | Slw _ |
             Lwz _ as exp)) -> 
       g' oc (NonTail(regs.(0)), exp);
       emit_inst (Ret (rtmp, rlr))
