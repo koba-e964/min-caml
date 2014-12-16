@@ -301,7 +301,7 @@ and g'_args oc x_reg_cl ys zs =
       (fun (i, yrs) y -> (i + 1, (y, regs.(i)) :: yrs))
       (0, x_reg_cl) ys in
     List.iter
-      (fun (y, r) -> emit_inst (Inst.mov (reg_of_string r) (reg_of_string y)))
+      (fun (y, r) -> emit_inst (Inst.mov (reg_of_string y) (reg_of_string r)))
       (shuffle reg_sw yrs);
     let (d, zfrs) = 
       List.fold_left
