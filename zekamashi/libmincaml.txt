@@ -1,0 +1,3 @@
+min_caml_print_int:
+	RET $28, ($29)
+

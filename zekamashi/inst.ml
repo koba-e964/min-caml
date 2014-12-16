@@ -9,7 +9,7 @@ type reg_or_imm =
 
 let show_reg (Reg i) = "$" ^ string_of_int i
 let show_ri = function
-  | RIReg i -> "R" ^ string_of_int i
+  | RIReg i -> "$" ^ string_of_int i
   | RIImm i -> string_of_int i
 
 type fop = FOpAdd | FOpSub | FOpMul | FOpDiv
@@ -86,4 +86,5 @@ let emit oc code =
   Queue.iter (emit_inst oc) code
 
 let mov src dest = Lda (dest, 0, src)
+let li imm dest = Lda (dest, imm, Reg 31)
 

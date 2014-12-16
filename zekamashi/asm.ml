@@ -13,6 +13,7 @@ and exp = (* 一つ一つの命令に対応する式 *)
   | Neg of Id.t
   | Add of Id.t * id_or_imm
   | Sub of Id.t * id_or_imm
+  | Arith of Syntax.a_op * Id.t * id_or_imm
   | Slw of Id.t * id_or_imm
   | Lwz of Id.t * id_or_imm
   | Stw of Id.t * Id.t * id_or_imm
@@ -48,7 +49,7 @@ let fletd (x, e1, e2) = Let ((x, Type.Float), e1, e2)
 (* seq : exp * t -> t *)
 let seq (e1, e2) = Let ((Id.gentmp Type.Unit, Type.Unit), e1, e2)
 
-let regs = Array.init 28 (fun i -> Printf.sprintf "%%R%d" i)
+let regs = Array.init 27 (fun i -> Printf.sprintf "%%R%d" i)
 (* let regs = Array.init 27 (fun i -> Printf.sprintf "_R_%d" i) *)
 let fregs = Array.init 32 (fun i -> Printf.sprintf "%%f%d" i)
 let allregs = Array.to_list regs
@@ -56,9 +57,9 @@ let allfregs = Array.to_list fregs
 let reg_cl = regs.(Array.length regs - 1) (* closure address *)
 let reg_sw = regs.(Array.length regs - 2) (* temporary for swap *)
 let reg_fsw = fregs.(Array.length fregs - 1) (* temporary for swap *)
-let reg_hp = "%R28"
+let reg_hp = "%R27"
 let reg_sp = "%R30"
-let reg_tmp = "%R29"
+let reg_tmp = "%R28"
 
 (* is_reg : Id.t -> bool *)
 let is_reg x = x.[0] = '%'
@@ -76,7 +77,7 @@ let fv_id_or_imm = function V (x) -> [x] | _ -> []
 let rec fv_exp = function
   | Nop | Li (_) | FLi (_) | SetL (_) | Comment (_) | Restore (_) -> []
   | Mr (x) | Neg (x) | FMr (x) | FNeg (x) | Save (x, _) -> [x]
-  | Add (x, y') | Sub (x, y') | Slw (x, y') | Lfd (x, y') | Lwz (x, y') -> 
+  | Add (x, y') | Sub (x, y') | Arith (_, x, y') | Slw (x, y') | Lfd (x, y') | Lwz (x, y') -> 
       x :: fv_id_or_imm y'
   | FAdd (x, y) | FSub (x, y) | FMul (x, y) | FDiv (x, y) ->
       [x; y]

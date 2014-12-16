@@ -80,7 +80,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(_), Nop) -> ()
   | (NonTail(x), Li(i)) when i >= -32768 && i < 32768 -> 
       (* Printf.fprintf oc "\tli\t%s, %d\n" (reg x) i *)
-      emit_inst (Lda (reg_of_string x, i, Reg 31))
+      emit_inst (Inst.li i (reg_of_string x))
   | (NonTail(x), Li(i)) ->
       let n = i lsr 16 in
       let m = i lxor (n lsl 16) in
@@ -101,6 +101,11 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       emit_inst (Addl (reg_of_string y, ri_of_ri z, reg_of_string x))
   | (NonTail(x), Sub (y, z)) -> 
       emit_inst (Subl (reg_of_string y, ri_of_ri z, reg_of_string x))
+  | (NonTail(x), Arith (AMul, y, C 2)) ->
+      let Reg ry = reg_of_string y in
+      emit_inst (Addl (Reg ry, RIReg ry, reg_of_string x))
+  | (NonTail(x), Arith (_, y, z)) -> 
+      failwith "arith is not supported (emit.ml)"
   | (NonTail(x), Slw(y, V(z))) -> 
       Printf.fprintf oc "\tslw\t%s, %s, %s\n" (reg x) (reg y) (reg z)
   | (NonTail(x), Slw(y, C(z))) -> 
@@ -162,11 +167,11 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (Tail, (Li _ | SetL _ | Mr _ | Neg _ | Add _ | Sub _ | Slw _ |
             Lwz _ as exp)) -> 
       g' oc (NonTail(regs.(0)), exp);
-      emit_inst (Ret (Reg 29, Reg 29))
+      emit_inst (Ret (rtmp, rlr))
   | (Tail, (FLi _ | FMr _ | FNeg _ | FAdd _ | FSub _ | FMul _ | FDiv _ |
             Lfd _ as exp)) ->
       g' oc (NonTail(fregs.(0)), exp);
-      emit_inst (Ret (Reg 29, Reg 29))
+      emit_inst (Ret (rtmp, rlr))
   | (Tail, (Restore(x) as exp)) ->
       (match locate x with
 	 | [i] -> g' oc (NonTail(regs.(0)), exp)
@@ -242,29 +247,26 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
 	 else if List.mem a allfregs && a <> fregs.(0) then 
 	   Printf.fprintf oc "\tfmr\t%s, %s\n" (reg a) (reg fregs.(0)));
 	(* Printf.fprintf oc "\tmtlr\t%s\n" reg_tmp *)
-        emit_inst (mov rtmp rlr)
+        emit_inst (Inst.mov rtmp rlr)
   | (NonTail(a), CallDir(Id.L(x), ys, zs)) -> 
       (* Printf.fprintf oc "\tmflr\t%s\n" reg_tmp; *)
-      emit_inst (mov rlr rtmp);
       g'_args oc [] ys zs;
       let ss = stacksize () in
 	(* Printf.fprintf oc "\tstw\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp; *)
-        emit_inst (Stl (rtmp, ss - 4, rsp));
+        emit_inst (Stl (rlr, ss - 4, rsp));
 	(* Printf.fprintf oc "\taddi\t%s, %s, %d\n" reg_sp reg_sp ss; *)
         emit_inst (Addl (rsp, RIImm ss, rsp));
 	(* Printf.fprintf oc "\tbl\t%s\n" x; *)
-        emit_inst (Bsr (Reg 29, x));
+        emit_inst (Bsr (rlr, x));
 	(* Printf.fprintf oc "\tsubi\t%s, %s, %d\n" reg_sp reg_sp ss; *)
         emit_inst (Subl (rsp, RIImm ss, rsp));
 	(* Printf.fprintf oc "\tlwz\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp; *)
-        emit_inst (Ldl (rtmp, ss - 4, rsp));
+        emit_inst (Ldl (rlr, ss - 4, rsp));
 	(if List.mem a allregs && a <> regs.(0) then
 	   (* Printf.fprintf oc "\tmr\t%s, %s\n" (reg a) (reg regs.(0)) *)
-           emit_inst (Inst.mov (reg_of_string a) (Reg 0))
+           emit_inst (Inst.mov (Reg 0) (reg_of_string a))
 	 else if List.mem a allfregs && a <> fregs.(0) then
-	   Printf.fprintf oc "\tfmr\t%s, %s\n" (reg a) (reg fregs.(0)));
-	(* Printf.fprintf oc "\tmtlr\t%s\n" reg_tmp *)
-        emit_inst (mov rtmp rlr)
+	   Printf.fprintf oc "\tfmr\t%s, %s\n" (reg a) (reg fregs.(0)))
 and g'_tail_if oc e1 e2 b bcond = 
   let b_else = Id.genid (b ^ "_else") in
     (* Printf.fprintf oc "\t%s\tcr7, %s\n" bn b_else; *)
@@ -284,7 +286,7 @@ and g'_non_tail_if oc dest e1 e2 b bcond =
       g oc (dest, e1);
       let stackset1 = !stackset in
 	(* Printf.fprintf oc "\tb\t%s\n" b_cont; *)
-        emit_inst (Br (Reg 30, b_cont));
+        emit_inst (Br (rtmp, b_cont));
 	(* Printf.fprintf oc "%s:\n" b_else; *)
         emit_inst (Label b_else);
 	stackset := stackset_back;
@@ -318,12 +320,13 @@ let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
 
 let f oc asmlib (Prog(data, fundefs, e)) =
   Format.eprintf "generating assembly...@.";
+  emit_inst (li 0x4000 rsp);
   emit_inst (Inst.Comment "main program start");
   stackset := S.empty;
   stackmap := [];
   g oc (NonTail("_R_0"), e);
   emit_inst (Inst.Comment "main program end");
-  emit_inst (Br (Reg 30, "min_caml_main_end"));
+  emit_inst (Br (rtmp, "min_caml_main_end"));
   List.iter (fun fundef -> h oc fundef) fundefs;
   emit_inst (ExtFile asmlib);
   emit_inst (Label "min_caml_main_end");
