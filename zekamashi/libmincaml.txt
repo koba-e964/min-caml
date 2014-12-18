@@ -1,3 +1,35 @@
 min_caml_print_int:
+# while ((*0x100002 & 1) == 0) {}
+#   *0x100003 = data & 255;
+	LDAH $1, 16($31)
+	LDA $2, 0($0)
+mcpi0:
+	LDL $3, 2($1)
+	AND $3, 1, $4
+	BEQ $4, mcpi0
+	AND $0, 255, $4
+	STL $4, 3($1)
+	SRL $0, 8, $0
+mcpi1:
+	LDL $3, 2($1)
+	AND $3, 1, $4
+	BEQ $4, mcpi1
+	AND $0, 255, $4
+	STL $4, 3($1)
+	SRL $0, 8, $0
+mcpi2:
+	LDL $3, 2($1)
+	AND $3, 1, $4
+	BEQ $4, mcpi2
+	AND $0, 255, $4
+	STL $4, 3($1)
+	SRL $0, 8, $0
+mcpi3:
+	LDL $3, 2($1)
+	AND $3, 1, $4
+	BEQ $4, mcpi3
+	AND $0, 255, $4
+	STL $4, 3($1)
+	LDA $0, 0($2)
 	RET $28, ($29)
 
