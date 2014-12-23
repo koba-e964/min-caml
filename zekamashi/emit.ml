@@ -40,9 +40,15 @@ let reg_of_string r =
   then Reg (int_of_string (String.sub r 2 (String.length r - 2)))
   else failwith "invalid regname" 
 
+let freg_of_string r = 
+  if is_reg r
+  then FReg (int_of_string (String.sub r 2 (String.length r - 2)))
+  else failwith "invalid regname" 
+
 let rsp = Reg 30
 let rtmp = Reg 28
 let rlr = Reg 29
+let frtmp = FReg 30
 
 let ri_of_ri r = match r with
   | V x ->
@@ -71,6 +77,17 @@ let rec shuffle sw xys =
 				    | yz -> yz) xys)
       | (xys, acyc) -> acyc @ shuffle sw xys
 
+let load_imm imm reg =
+  if Int32.compare imm (Int32.of_int (-32768)) >= 0 && Int32.compare imm (Int32.of_int 32768) < 0
+    then
+      emit_inst (Inst.li (Int32.to_int imm) reg)
+    else
+      let n = Int32.to_int (Int32.shift_right imm 16) in
+      let m = Int32.to_int (Int32.logand imm (Int32.of_int 0xffff)) in
+        emit_inst (Lda (reg, m, Reg 31));
+        emit_inst (Ldah (reg, n, reg))
+      
+
 type dest = Tail | NonTail of Id.t (* 末尾かどうかを表すデータ型 *)
 let rec g oc = function (* 命令列のアセンブリ生成 *)
   | (dest, Ans (exp)) -> g' oc (dest, exp)
@@ -81,16 +98,16 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(x), Li(i)) when i >= -32768 && i < 32768 -> 
       (* Printf.fprintf oc "\tli\t%s, %d\n" (reg x) i *)
       emit_inst (Inst.li i (reg_of_string x))
-  | (NonTail(x), Li(i)) ->
+  | (NonTail x, Li i) ->
       let n = i lsr 16 in
       let m = i land 0xffff in
       let r = reg_of_string x in
         emit_inst (Lda (r, m, Reg 31));
         emit_inst (Ldah (r, n, r))
-        
-  | (NonTail(x), FLi(Id.L(l))) ->
-      let s = load_label reg_tmp l in
-      Printf.fprintf oc "%s\tlfd\t%s, 0(%s)\n" s (reg x) reg_tmp
+  | (NonTail x, FLi fl) ->
+     let bits = Int32.bits_of_float fl in
+     load_imm bits rtmp;
+     emit_inst (Itofs (rtmp, freg_of_string x))
   | (NonTail(x), SetL(Id.L(y))) -> 
       let s = load_label x y in
       Printf.fprintf oc "%s" s
@@ -124,22 +141,23 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(x), FMr(y)) -> Printf.fprintf oc "\tfmr\t%s, %s\n" (reg x) (reg y)
   | (NonTail(x), FNeg(y)) -> 
       Printf.fprintf oc "\tfneg\t%s, %s\n" (reg x) (reg y)
-  | (NonTail(x), FAdd(y, z)) -> 
-      Printf.fprintf oc "\tfadd\t%s, %s, %s\n" (reg x) (reg y) (reg z)
+  | (NonTail(x), FAdd(y, z)) ->
+      emit_inst (FOp (FOpAdd, freg_of_string y, freg_of_string z, freg_of_string x))
   | (NonTail(x), FSub(y, z)) -> 
-      Printf.fprintf oc "\tfsub\t%s, %s, %s\n" (reg x) (reg y) (reg z)
+      emit_inst (FOp (FOpSub, freg_of_string y, freg_of_string z, freg_of_string x))
   | (NonTail(x), FMul(y, z)) -> 
-      Printf.fprintf oc "\tfmul\t%s, %s, %s\n" (reg x) (reg y) (reg z)
-  | (NonTail(x), FDiv(y, z)) -> 
-      Printf.fprintf oc "\tfdiv\t%s, %s, %s\n" (reg x) (reg y) (reg z)
+      emit_inst (FOp (FOpMul, freg_of_string y, freg_of_string z, freg_of_string x))
+  | (NonTail(x), FDiv(y, z)) ->
+        emit_inst (Invs (freg_of_string z, frtmp));
+        emit_inst (FOp (FOpMul, freg_of_string y, frtmp, freg_of_string x))
   | (NonTail(x), Lfd(y, V(z))) ->
       Printf.fprintf oc "\tlfdx\t%s, %s, %s\n" (reg x) (reg y) (reg z)
   | (NonTail(x), Lfd(y, C(z))) -> 
-      Printf.fprintf oc "\tlfd\t%s, %d(%s)\n" (reg x) z (reg y)
+      emit_inst (Lds (freg_of_string x, z, reg_of_string y))
   | (NonTail(_), Stfd(x, y, V(z))) ->
       Printf.fprintf oc "\tstfdx\t%s, %s, %s\n" (reg x) (reg y) (reg z)
   | (NonTail(_), Stfd(x, y, C(z))) ->
-      Printf.fprintf oc "\tstfd\t%s, %d(%s)\n" (reg x) z (reg y)
+      emit_inst (Sts (freg_of_string x, z, reg_of_string y))
   | (NonTail(_), Asm.Comment(s)) -> emit_inst (Inst.Comment s)
   (* 退避の仮想命令の実装 *)
   | (NonTail(_), Save(x, y))
@@ -151,7 +169,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(_), Save(x, y)) 
       when List.mem x allfregs && not (S.mem y !stackset) ->
       savef y;
-	Printf.fprintf oc "\tstfd\t%s, %d(%s)\n" (reg x) (offset y) reg_sp
+        emit_inst (Sts (freg_of_string x, offset y, rsp))
   | (NonTail(_), Save(x, y)) -> assert (S.mem y !stackset); ()
   (* 復帰の仮想命令の実装 *)
   | (NonTail(x), Restore(y)) when List.mem x allregs ->
@@ -159,7 +177,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       emit_inst (Ldl (reg_of_string x, offset y, rsp))
   | (NonTail(x), Restore(y)) ->
       assert (List.mem x allfregs);
-      Printf.fprintf oc "\tlfd\t%s, %d(%s)\n" (reg x) (offset y) reg_sp
+      emit_inst (Lds (freg_of_string x, offset y, rsp))
   (* 末尾だったら計算結果を第一レジスタにセット *)
   | (Tail, (Nop | Stw _ | Stfd _ | Asm.Comment _ | Save _ as exp)) ->
       g' oc (NonTail(Id.gentmp Type.Unit), exp);

@@ -8,11 +8,12 @@ type reg_or_imm =
   | RIImm of int
 
 let show_reg (Reg i) = "$" ^ string_of_int i
+let show_freg (FReg i) = "$f" ^ string_of_int i
 let show_ri = function
   | RIReg i -> "$" ^ string_of_int i
   | RIImm i -> string_of_int i
 
-type fop = FOpAdd | FOpSub | FOpMul | FOpDiv
+type fop = FOpAdd | FOpSub | FOpMul
 type disp16 = int
 type disp21 = int
 type label = string
@@ -45,6 +46,11 @@ type zek_inst =
   | Addl of reg * reg_or_imm * reg
   | Subl of reg * reg_or_imm * reg
   | Cmp of cmp * reg * reg_or_imm * reg
+  | Lds of freg * disp16 * reg
+  | Sts of freg * disp16 * reg
+  | FOp of fop * freg * freg * freg
+  | Invs of freg * freg
+  | Itofs of reg * freg
   | Label of label
   | Comment of string
   | ExtFile of string
@@ -63,6 +69,13 @@ let show_zek_inst = function
   | Addl (a, b, c) -> "\tADDL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
   | Subl (a, b, c) -> "\tSUBL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
   | Cmp (op, a, b, c) -> "\tCMP" ^ show_cmp op ^ "\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
+  | Lds (a, d, b) -> "\tLDS\t" ^ show_freg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
+  | Sts (a, d, b) -> "\tSTS\t" ^ show_freg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
+  | FOp (FOpAdd, a, b, c) -> "\tADDS\t" ^ show_freg a ^ ", " ^ show_freg b ^ ", " ^ show_freg c
+  | FOp (FOpSub, a, b, c) -> "\tSUBS\t" ^ show_freg a ^ ", " ^ show_freg b ^ ", " ^ show_freg c
+  | FOp (FOpMul, a, b, c) -> "\tMULS\t" ^ show_freg a ^ ", " ^ show_freg b ^ ", " ^ show_freg c
+  | Invs (a, b) -> "\tINVS\t" ^ show_freg a ^ ", " ^ show_freg b
+  | Itofs (ra, fb) -> "\tITOFS\t" ^ show_reg ra ^ ", " ^ show_freg fb
   | Label l -> l ^ ":"
   | Comment s -> "    # " ^ s ^ "\n"
   | ExtFile _ -> failwith "show_zek_inst for ExtFile"

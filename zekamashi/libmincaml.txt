@@ -33,3 +33,8 @@ mcpi3:
 	LDA $0, 0($2)
 	RET $28, ($29)
 
+min_caml_truncate:
+	CVTSL/C $f0, $f0
+	FTOIS $f0, $0
+	RET $28, ($29)
+
