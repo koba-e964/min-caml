@@ -83,10 +83,10 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       emit_inst (Inst.li i (reg_of_string x))
   | (NonTail(x), Li(i)) ->
       let n = i lsr 16 in
-      let m = i lxor (n lsl 16) in
+      let m = i land 0xffff in
       let r = reg_of_string x in
-        emit_inst (Lda (r, n, Reg 31));
-        emit_inst (Ldah (r, m, r))
+        emit_inst (Lda (r, m, Reg 31));
+        emit_inst (Ldah (r, n, r))
         
   | (NonTail(x), FLi(Id.L(l))) ->
       let s = load_label reg_tmp l in
@@ -95,7 +95,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       let s = load_label x y in
       Printf.fprintf oc "%s" s
   | (NonTail(x), Mr(y)) when x = y -> ()
-  | (NonTail(x), Mr(y)) -> Printf.fprintf oc "\tmr\t%s, %s\n" (reg x) (reg y)
+  | (NonTail(x), Mr(y)) -> emit_inst (mov (reg_of_string y) (reg_of_string x))
   | (NonTail(x), Neg(y)) -> Printf.fprintf oc "\tneg\t%s, %s\n" (reg x) (reg y)
   | (NonTail(x), Add (y, z)) -> 
       emit_inst (Addl (reg_of_string y, ri_of_ri z, reg_of_string x))
@@ -180,43 +180,43 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       Printf.fprintf oc "\tblr\n";
   | (Tail, IfEq(x, y, e1, e2)) ->
       emit_inst (Cmp (CEQ, reg_of_string x, ri_of_ri y, rtmp));
-      g'_tail_if oc e1 e2 "beq" NE
+      g'_tail_if oc e1 e2 "beq" EQ
   | (Tail, IfLE(x, y, e1, e2)) ->
       emit_inst (Cmp (CLE, reg_of_string x, ri_of_ri y, rtmp));
-      g'_tail_if oc e2 e1 "ble" LE
+      g'_tail_if oc e2 e1 "ble" NE
   | (Tail, IfGE(x, y, e1, e2)) ->
       emit_inst (Cmp (CLT, reg_of_string x, ri_of_ri y, rtmp));
-      g'_tail_if oc e1 e2 "bge" GE
+      g'_tail_if oc e1 e2 "bge" EQ
   | (Tail, IfFEq(x, y, e1, e2)) ->
       Printf.fprintf oc "\tfcmpu\tcr7, %s, %s\n" (reg x) (reg y);
-      g'_tail_if oc e1 e2 "beq" NE
+      g'_tail_if oc e1 e2 "beq" EQ
   | (Tail, IfFLE(x, y, e1, e2)) ->
       Printf.fprintf oc "\tfcmpu\tcr7, %s, %s\n" (reg x) (reg y);
-      g'_tail_if oc e2 e1 "ble" LE
+      g'_tail_if oc e2 e1 "ble" EQ
   | (NonTail(z), IfEq(x, V(y), e1, e2)) ->
       Printf.fprintf oc "\tcmpw\tcr7, %s, %s\n" (reg x) (reg y);
-      g'_non_tail_if oc (NonTail(z)) e1 e2 "beq" NE
+      g'_non_tail_if oc (NonTail(z)) e1 e2 "beq" EQ
   | (NonTail(z), IfEq(x, C(y), e1, e2)) ->
       Printf.fprintf oc "\tcmpwi\tcr7, %s, %d\n" (reg x) y;
-      g'_non_tail_if oc (NonTail(z)) e1 e2 "beq" NE
+      g'_non_tail_if oc (NonTail(z)) e1 e2 "beq" EQ
   | (NonTail(z), IfLE(x, V(y), e1, e2)) ->
       Printf.fprintf oc "\tcmpw\tcr7, %s, %s\n" (reg x) (reg y);
-      g'_non_tail_if oc (NonTail(z)) e2 e1 "ble" LE
+      g'_non_tail_if oc (NonTail(z)) e2 e1 "ble" NE
   | (NonTail(z), IfLE(x, C(y), e1, e2)) ->
       Printf.fprintf oc "\tcmpwi\tcr7, %s, %d\n" (reg x) y;
-      g'_non_tail_if oc (NonTail(z)) e2 e1 "ble" LE
+      g'_non_tail_if oc (NonTail(z)) e2 e1 "ble" NE
   | (NonTail(z), IfGE(x, V(y), e1, e2)) ->
       Printf.fprintf oc "\tcmpw\tcr7, %s, %s\n" (reg x) (reg y);
-      g'_non_tail_if oc (NonTail(z)) e2 e1 "bge" GE
+      g'_non_tail_if oc (NonTail(z)) e2 e1 "bge" EQ
   | (NonTail(z), IfGE(x, C(y), e1, e2)) ->
       Printf.fprintf oc "\tcmpwi\tcr7, %s, %d\n" (reg x) y;
-      g'_non_tail_if oc (NonTail(z)) e2 e1 "bge" GE
+      g'_non_tail_if oc (NonTail(z)) e2 e1 "bge" EQ
   | (NonTail(z), IfFEq(x, y, e1, e2)) ->
       Printf.fprintf oc "\tfcmpu\tcr7, %s, %s\n" (reg x) (reg y);
-      g'_non_tail_if oc (NonTail(z)) e1 e2 "beq" NE
+      g'_non_tail_if oc (NonTail(z)) e1 e2 "beq" EQ
   | (NonTail(z), IfFLE(x, y, e1, e2)) ->
       Printf.fprintf oc "\tfcmpu\tcr7, %s, %s\n" (reg x) (reg y);
-      g'_non_tail_if oc (NonTail(z)) e2 e1 "ble" LE
+      g'_non_tail_if oc (NonTail(z)) e2 e1 "ble" EQ
   (* 関数呼び出しの仮想命令の実装 *)
   | (Tail, CallCls(x, ys, zs)) -> (* 末尾呼び出し *)
       failwith "not yet implemented (callcls)";
@@ -270,7 +270,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
 and g'_tail_if oc e1 e2 b bcond = 
   let b_else = Id.genid (b ^ "_else") in
     (* Printf.fprintf oc "\t%s\tcr7, %s\n" bn b_else; *)
-    emit_inst (BC (NE, rtmp, b_else));
+    emit_inst (BC (bcond, rtmp, b_else));
     let stackset_back = !stackset in
       g oc (Tail, e1);
       (* Printf.fprintf oc "%s:\n" b_else; *)
@@ -281,7 +281,7 @@ and g'_non_tail_if oc dest e1 e2 b bcond =
   let b_else = Id.genid (b ^ "_else") in
   let b_cont = Id.genid (b ^ "_cont") in
     (* Printf.fprintf oc "\t%s\tcr7, %s\n" bn b_else; *)
-    emit_inst (BC (NE, rtmp, b_else));
+    emit_inst (BC (bcond, rtmp, b_else));
     let stackset_back = !stackset in
       g oc (dest, e1);
       let stackset1 = !stackset in
