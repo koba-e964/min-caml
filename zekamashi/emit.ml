@@ -48,6 +48,7 @@ let freg_of_string r =
 let rsp = Reg 30
 let rtmp = Reg 28
 let rlr = Reg 29
+let rhp = Reg 27
 let frtmp = FReg 30
 
 let ri_of_ri r = match r with
@@ -82,11 +83,16 @@ let load_imm imm reg =
     then
       emit_inst (Inst.li (Int32.to_int imm) reg)
     else
-      let n = Int32.to_int (Int32.shift_right imm 16) in
       let m = Int32.to_int (Int32.logand imm (Int32.of_int 0xffff)) in
-        emit_inst (Lda (reg, m, Reg 31));
-        emit_inst (Ldah (reg, n, reg))
-      
+      let m' = if m >= 32768 then m - 65536 else m in
+      let n = Int32.to_int (Int32.shift_right (Int32.sub imm (Int32.of_int m')) 16) in
+      let n' = if n >= 32768 then n - 65536 else n in
+      if m' = 0 then
+        emit_inst (Ldah (reg, n', Reg 31))
+      else begin
+        emit_inst (Lda (reg, m', Reg 31));
+        emit_inst (Ldah (reg, n', reg))
+      end
 
 type dest = Tail | NonTail of Id.t (* 末尾かどうかを表すデータ型 *)
 let rec g oc = function (* 命令列のアセンブリ生成 *)
@@ -95,19 +101,14 @@ let rec g oc = function (* 命令列のアセンブリ生成 *)
 and g' oc = function (* 各命令のアセンブリ生成 *)
     (* 末尾でなかったら計算結果を dest にセット *)
   | (NonTail(_), Nop) -> ()
-  | (NonTail(x), Li(i)) when i >= -32768 && i < 32768 -> 
-      (* Printf.fprintf oc "\tli\t%s, %d\n" (reg x) i *)
-      emit_inst (Inst.li i (reg_of_string x))
   | (NonTail x, Li i) ->
-      let n = i lsr 16 in
-      let m = i land 0xffff in
       let r = reg_of_string x in
-        emit_inst (Lda (r, m, Reg 31));
-        emit_inst (Ldah (r, n, r))
+      load_imm (Int32.of_int i) r
   | (NonTail x, FLi fl) ->
      let bits = Int32.bits_of_float fl in
      load_imm bits rtmp;
-     emit_inst (Itofs (rtmp, freg_of_string x))
+     emit_inst (Itofs (rtmp, freg_of_string x));
+     emit_inst (Inst.Comment (Printf.sprintf "%f : %s" fl (Int32.to_string bits)))
   | (NonTail(x), SetL(Id.L(y))) -> 
       let s = load_label x y in
       Printf.fprintf oc "%s" s
@@ -339,6 +340,7 @@ let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
 let f oc asmlib (Prog(data, fundefs, e)) =
   Format.eprintf "generating assembly...@.";
   emit_inst (li 0x4000 rsp);
+  emit_inst (li 0x6000 rhp);
   emit_inst (Inst.Comment "main program start");
   stackset := S.empty;
   stackmap := [];
