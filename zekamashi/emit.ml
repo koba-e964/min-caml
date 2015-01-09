@@ -114,7 +114,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       Printf.fprintf oc "%s" s
   | (NonTail(x), Mr(y)) when x = y -> ()
   | (NonTail(x), Mr(y)) -> emit_inst (mov (reg_of_string y) (reg_of_string x))
-  | (NonTail(x), Neg(y)) -> Printf.fprintf oc "\tneg\t%s, %s\n" (reg x) (reg y)
+  | (NonTail(x), Neg(y)) -> emit_inst (Subl (Reg 31, (match reg_of_string y with Reg i -> RIReg i), reg_of_string x))
   | (NonTail(x), Add (y, z)) -> 
       emit_inst (Addl (reg_of_string y, ri_of_ri z, reg_of_string x))
   | (NonTail(x), Sub (y, z)) -> 
@@ -212,23 +212,14 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (Tail, IfFLE(x, y, e1, e2)) ->
       Printf.fprintf oc "\tfcmpu\tcr7, %s, %s\n" (reg x) (reg y);
       g'_tail_if oc e2 e1 "ble" EQ
-  | (NonTail(z), IfEq(x, V(y), e1, e2)) ->
-      Printf.fprintf oc "\tcmpw\tcr7, %s, %s\n" (reg x) (reg y);
+  | (NonTail(z), IfEq(x, y, e1, e2)) ->
+      emit_inst (Cmp (CEQ, reg_of_string x, ri_of_ri y, rtmp));
       g'_non_tail_if oc (NonTail(z)) e1 e2 "beq" EQ
-  | (NonTail(z), IfEq(x, C(y), e1, e2)) ->
-      Printf.fprintf oc "\tcmpwi\tcr7, %s, %d\n" (reg x) y;
-      g'_non_tail_if oc (NonTail(z)) e1 e2 "beq" EQ
-  | (NonTail(z), IfLE(x, V(y), e1, e2)) ->
-      Printf.fprintf oc "\tcmpw\tcr7, %s, %s\n" (reg x) (reg y);
+  | (NonTail(z), IfLE(x, y, e1, e2)) ->
+      emit_inst (Cmp (CLE, reg_of_string x, ri_of_ri y, rtmp));
       g'_non_tail_if oc (NonTail(z)) e2 e1 "ble" NE
-  | (NonTail(z), IfLE(x, C(y), e1, e2)) ->
-      Printf.fprintf oc "\tcmpwi\tcr7, %s, %d\n" (reg x) y;
-      g'_non_tail_if oc (NonTail(z)) e2 e1 "ble" NE
-  | (NonTail(z), IfGE(x, V(y), e1, e2)) ->
-      Printf.fprintf oc "\tcmpw\tcr7, %s, %s\n" (reg x) (reg y);
-      g'_non_tail_if oc (NonTail(z)) e2 e1 "bge" EQ
-  | (NonTail(z), IfGE(x, C(y), e1, e2)) ->
-      Printf.fprintf oc "\tcmpwi\tcr7, %s, %d\n" (reg x) y;
+  | (NonTail(z), IfGE(x, y, e1, e2)) ->
+      emit_inst (Cmp (CLT, reg_of_string x, ri_of_ri y, rtmp));
       g'_non_tail_if oc (NonTail(z)) e2 e1 "bge" EQ
   | (NonTail(z), IfFEq(x, y, e1, e2)) ->
       Printf.fprintf oc "\tfcmpu\tcr7, %s, %s\n" (reg x) (reg y);
