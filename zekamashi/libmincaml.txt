@@ -43,7 +43,7 @@ min_caml_create_array: # int -> 'a -> 'a array
 	LDA $6, 0($3) # old_min_caml_hp
 	LDA $4, 0($0)
 lmcca2:
-	BEQ $5, lmcca3
+	BEQ $4, lmcca3
 	STL $1, 0($3)
 	ADDL $3, 4, $3   # sizeof(int) = 4
 	SUBL $4, 1, $4

@@ -55,6 +55,42 @@ type zek_inst =
   | Comment of string
   | ExtFile of string
 
+let filter_queue p queue =
+  let newq = Queue.create () in
+  Queue.iter (fun x -> if p x then Queue.add x newq) queue;
+  newq
+let list_of_queue q = List.rev (Queue.fold (fun x y -> y :: x) [] q)
+
+let abst_add rsrc imm rdest = 
+  if Int32.compare imm (Int32.of_int (-32768)) >= 0 && Int32.compare imm (Int32.of_int 32768) < 0
+    then
+      [Lda (rdest, Int32.to_int imm, rsrc)]
+    else
+      let m = Int32.to_int (Int32.logand imm (Int32.of_int 0xffff)) in
+      let m' = if m >= 32768 then m - 65536 else m in
+      let n = Int32.to_int (Int32.shift_right (Int32.sub imm (Int32.of_int m')) 16) in
+      let n' = if n >= 32768 then n - 65536 else n in
+      if m' = 0 then
+        [Ldah (rdest, n', rsrc)]
+      else begin
+        [Lda (rdest, m', rsrc)
+        ;Ldah (rdest, n', rdest)]
+      end
+
+
+let replace_addl_subl newq inst = match inst with
+  | Addl (rsrc, RIImm v, rdest) -> List.iter (fun x -> Queue.add x newq) (abst_add rsrc (Int32.of_int v) rdest) 
+  | Subl (rsrc, RIImm v, rdest) -> List.iter (fun x -> Queue.add x newq) (abst_add rsrc (Int32.of_int (-v)) rdest) 
+  | i -> Queue.add i newq
+let process_addl_subl q = 
+  let l = list_of_queue q in
+  let newq = Queue.create () in
+  let rec proc ls = match ls with
+    | [] -> ()
+    | x :: y -> replace_addl_subl newq x; proc y
+  in proc l; newq
+
+
 let show_zek_inst = function
   | Lda (a, d, b) -> "\tLDA\t" ^ show_reg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
   | Ldah (a, d, b) -> "\tLDAH\t" ^ show_reg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
@@ -96,7 +132,8 @@ let emit_inst oc = function
     end
   | inst -> Printf.fprintf oc "%s\n" (show_zek_inst inst)
 let emit oc code = 
-  Queue.iter (emit_inst oc) code
+  let code1 = process_addl_subl code in
+  Queue.iter (emit_inst oc) code1
 
 let mov src dest = Lda (dest, 0, src)
 let li imm dest = Lda (dest, imm, Reg 31)

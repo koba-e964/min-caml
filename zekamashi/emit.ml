@@ -1,8 +1,6 @@
 open Asm
 open Inst
 
-let gethi (x : float) : int32 = Int32.shift_right_logical (Int32.bits_of_float x) 16
-let getlo (x : float) : int32 = Int32.logand (Int32.bits_of_float x) (Int32.of_int 0xffff)
 
 let stackset = ref S.empty (* すでに Save された変数の集合 *)
 let stackmap = ref [] (* Save された変数のスタックにおける位置 *)
@@ -202,25 +200,25 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       g'_tail_if oc e1 e2 "beq" EQ
   | (Tail, IfLE(x, y, e1, e2)) ->
       emit_inst (Cmp (CLE, reg_of_string x, ri_of_ri y, rtmp));
-      g'_tail_if oc e2 e1 "ble" NE
+      g'_tail_if oc e1 e2 "ble" EQ
   | (Tail, IfGE(x, y, e1, e2)) ->
       emit_inst (Cmp (CLT, reg_of_string x, ri_of_ri y, rtmp));
-      g'_tail_if oc e1 e2 "bge" EQ
+      g'_tail_if oc e1 e2 "bge" NE
   | (Tail, IfFEq(x, y, e1, e2)) ->
       Printf.fprintf oc "\tfcmpu\tcr7, %s, %s\n" (reg x) (reg y);
       g'_tail_if oc e1 e2 "beq" EQ
   | (Tail, IfFLE(x, y, e1, e2)) ->
       Printf.fprintf oc "\tfcmpu\tcr7, %s, %s\n" (reg x) (reg y);
-      g'_tail_if oc e2 e1 "ble" EQ
+      g'_tail_if oc e1 e2 "ble" NE
   | (NonTail(z), IfEq(x, y, e1, e2)) ->
       emit_inst (Cmp (CEQ, reg_of_string x, ri_of_ri y, rtmp));
       g'_non_tail_if oc (NonTail(z)) e1 e2 "beq" EQ
   | (NonTail(z), IfLE(x, y, e1, e2)) ->
       emit_inst (Cmp (CLE, reg_of_string x, ri_of_ri y, rtmp));
-      g'_non_tail_if oc (NonTail(z)) e2 e1 "ble" NE
+      g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" EQ
   | (NonTail(z), IfGE(x, y, e1, e2)) ->
       emit_inst (Cmp (CLT, reg_of_string x, ri_of_ri y, rtmp));
-      g'_non_tail_if oc (NonTail(z)) e2 e1 "bge" EQ
+      g'_non_tail_if oc (NonTail(z)) e1 e2 "bge" NE
   | (NonTail(z), IfFEq(x, y, e1, e2)) ->
       Printf.fprintf oc "\tfcmpu\tcr7, %s, %s\n" (reg x) (reg y);
       g'_non_tail_if oc (NonTail(z)) e1 e2 "beq" EQ
