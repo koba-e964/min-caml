@@ -38,3 +38,18 @@ min_caml_truncate:
 	FTOIS $f0, $0
 	RET $28, ($29)
 
+min_caml_create_array: # int -> 'a -> 'a array
+	LDA $3, 0($27)
+	LDA $6, 0($3) # old_min_caml_hp
+	LDA $4, 0($0)
+lmcca2:
+	BEQ $5, lmcca3
+	STL $1, 0($3)
+	ADDL $3, 4, $3   # sizeof(int) = 4
+	SUBL $4, 1, $4
+	BR $28, lmcca2
+lmcca3:
+	LDA $27, 0($3)
+	LDA $0, 0($6)
+	RET $28, ($29)
+
