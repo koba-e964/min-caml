@@ -61,6 +61,8 @@ let reg_hp = "%R27"
 let reg_sp = "%R30"
 let reg_tmp = "%R28"
 
+let wordsize = 4
+
 (* is_reg : Id.t -> bool *)
 let is_reg x = x.[0] = '%'
 

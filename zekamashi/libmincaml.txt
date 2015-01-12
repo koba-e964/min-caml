@@ -32,10 +32,38 @@ mcpi3:
 	STL $4, 3($1)
 	LDA $0, 0($2)
 	RET $28, ($29)
+min_caml_print_char:
+# while ((*0x100002 & 1) == 0) {}
+#   *0x100003 = data & 255;
+	LDAH $1, 16($31)
+	LDA $2, 0($0)
+mcpc:
+	LDL $3, 2($1)
+	AND $3, 1, $4
+	BEQ $4, mcpi0
+	AND $0, 255, $4
+	STL $4, 3($1)
+	RET $28, ($29)
 
+
+min_caml_int_of_float:
 min_caml_truncate:
 	CVTSL/C $f0, $f0
 	FTOIS $f0, $0
+	RET $28, ($29)
+
+min_caml_float_of_int:
+	ITOFS $0, $f0
+	CVTLS $f0, $f0
+	RET $28, ($29)
+
+min_caml_floor:
+	CVTSL/C $f0, $f0
+	CVTLS $f0, $f0
+	RET $28, ($29)
+
+min_caml_sqrt:
+	SQRTS $f0, $f0
 	RET $28, ($29)
 
 min_caml_create_array: # int -> 'a -> 'a array

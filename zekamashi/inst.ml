@@ -45,9 +45,11 @@ type zek_inst =
   | Ret of reg * reg
   | Addl of reg * reg_or_imm * reg
   | Subl of reg * reg_or_imm * reg
+  | FBC of cond * freg * label
   | Cmp of cmp * reg * reg_or_imm * reg
   | Lds of freg * disp16 * reg
   | Sts of freg * disp16 * reg
+  | Cmps of cmp * freg * freg * freg
   | FOp of fop * freg * freg * freg
   | Invs of freg * freg
   | Itofs of reg * freg
@@ -104,9 +106,11 @@ let show_zek_inst = function
   | Ret (a, b) -> "\tRET\t" ^ show_reg a ^ ", (" ^ show_reg b ^ ")"
   | Addl (a, b, c) -> "\tADDL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
   | Subl (a, b, c) -> "\tSUBL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
+  | FBC (c, a, d) -> "\tF" ^ show_cond c ^ "\t" ^ show_freg a ^ ", " ^ d
   | Cmp (op, a, b, c) -> "\tCMP" ^ show_cmp op ^ "\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
   | Lds (a, d, b) -> "\tLDS\t" ^ show_freg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
   | Sts (a, d, b) -> "\tSTS\t" ^ show_freg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
+  | Cmps (op, a, b, c) -> "\tCMPS" ^ show_cmp op ^ "\t" ^ show_freg a ^ ", " ^ show_freg b ^ ", " ^ show_freg c
   | FOp (FOpAdd, a, b, c) -> "\tADDS\t" ^ show_freg a ^ ", " ^ show_freg b ^ ", " ^ show_freg c
   | FOp (FOpSub, a, b, c) -> "\tSUBS\t" ^ show_freg a ^ ", " ^ show_freg b ^ ", " ^ show_freg c
   | FOp (FOpMul, a, b, c) -> "\tMULS\t" ^ show_freg a ^ ", " ^ show_freg b ^ ", " ^ show_freg c
@@ -136,5 +140,6 @@ let emit oc code =
   Queue.iter (emit_inst oc) code1
 
 let mov src dest = Lda (dest, 0, src)
+let fmov src dest = FOp (FOpAdd, src, FReg 31, src)
 let li imm dest = Lda (dest, imm, Reg 31)
 

@@ -40,4 +40,3 @@ let rec cos x =
   let pi = 3.1415926535898 in
   sin (x +. pi /. 2.0)
 
-
