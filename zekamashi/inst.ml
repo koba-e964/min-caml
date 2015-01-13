@@ -47,6 +47,7 @@ type zek_inst =
   | Subl of reg * reg_or_imm * reg
   | FBC of cond * freg * label
   | Cmp of cmp * reg * reg_or_imm * reg
+  | Sll of reg * reg_or_imm * reg
   | Lds of freg * disp16 * reg
   | Sts of freg * disp16 * reg
   | Cmps of cmp * freg * freg * freg
@@ -54,6 +55,7 @@ type zek_inst =
   | Invs of freg * freg
   | Itofs of reg * freg
   | Label of label
+  | Mov of reg * label (* macro, expanded to 2 instructions *)
   | Comment of string
   | ExtFile of string
 
@@ -108,6 +110,7 @@ let show_zek_inst = function
   | Subl (a, b, c) -> "\tSUBL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
   | FBC (c, a, d) -> "\tF" ^ show_cond c ^ "\t" ^ show_freg a ^ ", " ^ d
   | Cmp (op, a, b, c) -> "\tCMP" ^ show_cmp op ^ "\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
+  | Sll (a, b, c) -> "\tSLL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
   | Lds (a, d, b) -> "\tLDS\t" ^ show_freg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
   | Sts (a, d, b) -> "\tSTS\t" ^ show_freg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
   | Cmps (op, a, b, c) -> "\tCMPS" ^ show_cmp op ^ "\t" ^ show_freg a ^ ", " ^ show_freg b ^ ", " ^ show_freg c
@@ -117,6 +120,7 @@ let show_zek_inst = function
   | Invs (a, b) -> "\tINVS\t" ^ show_freg a ^ ", " ^ show_freg b
   | Itofs (ra, fb) -> "\tITOFS\t" ^ show_reg ra ^ ", " ^ show_freg fb
   | Label l -> l ^ ":"
+  | Mov (a, b) -> "\tMOV\t" ^ show_reg a ^ ", " ^ b
   | Comment s -> "    # " ^ s ^ "\n"
   | ExtFile _ -> failwith "show_zek_inst for ExtFile"
 let emit_inst oc = function

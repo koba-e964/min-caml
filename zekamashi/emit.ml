@@ -61,8 +61,7 @@ let ri_of_reg (Reg x) = RIReg x
 
 
 let load_label r label =
-  "\tlis\t" ^ (reg r) ^ ", ha16(" ^ label ^ ")\n" ^
-  "\taddi\t" ^ (reg r) ^ ", " ^ (reg r) ^ ", lo16(" ^ label ^ ")\n"
+  emit_inst (Inst.Mov (reg_of_string r, label))
 
 (* 関数呼び出しのために引数を並べ替える (register shuffling) *)
 let rec shuffle sw xys = 
@@ -110,8 +109,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
      emit_inst (Itofs (rtmp, freg_of_string x));
      emit_inst (Inst.Comment (Printf.sprintf "%f : %s" fl (Int32.to_string bits)))
   | (NonTail(x), SetL(Id.L(y))) -> 
-      let s = load_label x y in
-      Printf.fprintf oc "%s" s
+      load_label x y
   | (NonTail(x), Mr(y)) when x = y -> ()
   | (NonTail(x), Mr(y)) -> emit_inst (mov (reg_of_string y) (reg_of_string x))
   | (NonTail(x), Neg(y)) -> emit_inst (Subl (Reg 31, (match reg_of_string y with Reg i -> RIReg i), reg_of_string x))
@@ -124,17 +122,20 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       emit_inst (Addl (Reg ry, RIReg ry, reg_of_string x))
   | (NonTail(x), Arith (_, y, z)) -> 
       failwith "arith is not supported (emit.ml)"
-  | (NonTail(x), Slw(y, V(z))) -> 
-      Printf.fprintf oc "\tslw\t%s, %s, %s\n" (reg x) (reg y) (reg z)
-  | (NonTail(x), Slw(y, C(z))) -> 
-      Printf.fprintf oc "\tslwi\t%s, %s, %d\n" (reg x) (reg y) z
+  | (NonTail(x), Slw(y, z)) -> 
+      emit_inst (Sll (reg_of_string y, ri_of_ri z, reg_of_string x)) 
+      (* Printf.fprintf oc "\tslwi\t%s, %s, %d\n" (reg x) (reg y) z *)
   | (NonTail(x), Lwz(y, V(z))) ->
-      Printf.fprintf oc "\tlwzx\t%s, %s, %s\n" (reg x) (reg y) (reg z)
+      emit_inst (Addl (reg_of_string y, ri_of_reg (reg_of_string z), rtmp));
+      emit_inst (Ldl (reg_of_string x, 0, rtmp))
+      (* Printf.fprintf oc "\tlwzx\t%s, %s, %s\n" (reg x) (reg y) (reg z) *)
   | (NonTail(x), Lwz(y, C(z))) -> 
       (* Printf.fprintf oc "\tlwz\t%s, %d(%s)\n" (reg x) z (reg y) *)
       emit_inst (Ldl (reg_of_string x, z, reg_of_string y));
   | (NonTail(_), Stw(x, y, V(z))) ->
-      Printf.fprintf oc "\tstwx\t%s, %s, %s\n" (reg x) (reg y) (reg z)
+      emit_inst (Addl (reg_of_string y, ri_of_reg (reg_of_string z), rtmp));
+      emit_inst (Stl (reg_of_string x, 0, rtmp))
+      (* Printf.fprintf oc "\tstwx\t%s, %s, %s\n" (reg x) (reg y) (reg z) *)
   | (NonTail(_), Stw(x, y, C(z))) -> 
       (* Printf.fprintf oc "\tstw\t%s, %d(%s)\n" (reg x) z (reg y) *)
       emit_inst (Stl (reg_of_string x, z, reg_of_string y));
@@ -152,11 +153,13 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
         emit_inst (Invs (freg_of_string z, frtmp));
         emit_inst (FOp (FOpMul, freg_of_string y, frtmp, freg_of_string x))
   | (NonTail(x), Lfd(y, V(z))) ->
-      Printf.fprintf oc "\tlfdx\t%s, %s, %s\n" (reg x) (reg y) (reg z)
+      emit_inst (Addl (reg_of_string y, ri_of_reg (reg_of_string z), rtmp));
+      emit_inst (Lds (freg_of_string x, 0, rtmp))
   | (NonTail(x), Lfd(y, C(z))) -> 
       emit_inst (Lds (freg_of_string x, z, reg_of_string y))
   | (NonTail(_), Stfd(x, y, V(z))) ->
-      Printf.fprintf oc "\tstfdx\t%s, %s, %s\n" (reg x) (reg y) (reg z)
+      emit_inst (Addl (reg_of_string y, ri_of_reg (reg_of_string z), rtmp));
+      emit_inst (Sts (freg_of_string x, 0, rtmp))
   | (NonTail(_), Stfd(x, y, C(z))) ->
       emit_inst (Sts (freg_of_string x, z, reg_of_string y))
   | (NonTail(_), Asm.Comment(s)) -> emit_inst (Inst.Comment s)
@@ -252,6 +255,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       g'_args oc [(x, reg_cl)] ys zs;
       (* Printf.fprintf oc "\tlwz\t%s, 0(%s)\n" (reg reg_sw) (reg reg_cl); *)
       emit_inst (Ldl (rtmp, 0, reg_of_string reg_cl));
+      emit_inst (Jmp (rtmp, rtmp))
       (* Printf.fprintf oc "\tmtctr\t%s\n\tbctr\n" (reg reg_sw); *)
   | (Tail, CallDir(Id.L(x), ys, zs)) -> (* 末尾呼び出し *)
       g'_args oc [] ys zs;

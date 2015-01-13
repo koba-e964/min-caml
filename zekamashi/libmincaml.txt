@@ -80,4 +80,20 @@ lmcca3:
 	LDA $27, 0($3)
 	LDA $0, 0($6)
 	RET $28, ($29)
+min_caml_create_float_array: # int -> float -> float array
+	LDA $3, 0($27)
+	LDA $6, 0($3) # old_min_caml_hp
+	LDA $4, 0($0)
+lmccfa2:
+	BEQ $4, lmcca3
+	STS $f0, 0($3)
+	ADDL $3, 4, $3   # sizeof(float) = 4
+	SUBL $4, 1, $4
+	BR $28, lmcca2
+lmccfa3:
+	LDA $27, 0($3)
+	LDA $0, 0($6)
+	RET $28, ($29)
+min_caml_print_newline:
+	RET $28, ($29)
 
