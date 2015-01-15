@@ -52,7 +52,7 @@ let seq (e1, e2) = Let ((Id.gentmp Type.Unit, Type.Unit), e1, e2)
 (* let regs = Array.init 27 (fun i -> Printf.sprintf "%%R%d" i) *)
 (* TODO ad-hoc modification, see emit.ml *)
 let regs = Array.append (Array.init 25 (fun i -> Printf.sprintf "%%R%d" i)) (Array.make 1 "%R26")
-let fregs = Array.init 32 (fun i -> Printf.sprintf "%%f%d" i)
+let fregs = Array.init 30 (fun i -> Printf.sprintf "%%f%d" i)
 let allregs = Array.to_list regs
 let allfregs = Array.to_list fregs
 let reg_cl = regs.(Array.length regs - 1) (* closure address *)
@@ -61,6 +61,7 @@ let reg_fsw = fregs.(Array.length fregs - 1) (* temporary for swap *)
 let reg_hp = "%R27"
 let reg_sp = "%R30"
 let reg_tmp = "%R28"
+let freg_tmp = "%f30"
 
 let wordsize = 4
 

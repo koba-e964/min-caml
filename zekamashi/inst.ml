@@ -144,6 +144,6 @@ let emit oc code =
   Queue.iter (emit_inst oc) code1
 
 let mov src dest = Lda (dest, 0, src)
-let fmov src dest = FOp (FOpAdd, src, FReg 31, src)
+let fmov src dest = FOp (FOpAdd, src, FReg 31, dest)
 let li imm dest = Lda (dest, imm, Reg 31)
 
