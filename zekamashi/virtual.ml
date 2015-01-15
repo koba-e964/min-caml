@@ -25,8 +25,8 @@ let expand xts ini addf addi =
     xts
     ini
     (fun (offset, acc) x -> let offset = align offset in
-       (offset + 8, addf x offset acc))
-    (fun (offset, acc) x t -> (offset + 4, addi x t offset acc))
+       (offset + wordsize, addf x offset acc))
+    (fun (offset, acc) x t -> (offset + wordsize, addi x t offset acc))
 
 let rec g env = function (* 式の仮想マシンコード生成 *)
   | Closure.Unit -> Ans (Nop)
@@ -66,7 +66,7 @@ let rec g env = function (* 式の仮想マシンコード生成 *)
       let (offset, store_fv) = 
 	expand
 	  (List.map (fun y -> (y, M.find y env)) ys)
-	  (4, e2')
+	  (wordsize, e2')
 	  (fun y offset store_fv -> seq (Stfd (y, x, C (offset)), store_fv))
 	  (fun y _ offset store_fv -> seq (Stw (y, x, C (offset)), store_fv)) in
 	Let ((x, t), Mr (reg_hp), 
@@ -108,7 +108,7 @@ let rec g env = function (* 式の仮想マシンコード生成 *)
 	(match M.find x env with
 	   | Type.Array (Type.Unit) -> Ans (Nop)
 	   | Type.Array (Type.Float) ->
-	       Let ((offset, Type.Int), Slw (y, C (2)), (* sizeof(float) = 4 *)
+	       Let ((offset, Type.Int), Slw (y, C (2)), (* sizeof(float) = wordsize *)
 		    Ans (Lfd (x, V (offset))))
 	   | Type.Array (_) ->
 	       Let ((offset, Type.Int), Slw (y, C (2)),
@@ -135,7 +135,7 @@ let h { Closure.name = (Id.L(x), t); Closure.args = yts;
   let (offset, load) = 
     expand
       zts
-      (4, g (M.add x t (M.add_list yts (M.add_list zts M.empty))) e)
+      (wordsize, g (M.add x t (M.add_list yts (M.add_list zts M.empty))) e)
       (fun z offset load -> fletd (z, Lfd (reg_cl, C (offset)), load))
       (fun z t offset load -> Let ((z, t), Lwz (reg_cl, C (offset)), load)) in
     match t with

@@ -20,8 +20,8 @@ let locate x =
     | y :: zs when x = y -> 0 :: List.map succ (loc zs)
     | y :: zs -> List.map succ (loc zs) in
     loc !stackmap
-let offset x = 4 * List.hd (locate x)
-let stacksize () = align ((List.length !stackmap + 1) * 4)
+let offset x = wordsize * List.hd (locate x)
+let stacksize () = align ((List.length !stackmap + 1) * wordsize)
 
 let insts = Queue.create ()
 
@@ -250,7 +250,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(z), IfFLE(x, y, e1, e2)) ->
       emit_inst (Cmps (CLE, freg_of_string x, freg_of_string y, frtmp));
       (* Printf.fprintf oc "\tfcmpu\tcr7, %s, %s\n" (reg x) (reg y); *)
-      g'_non_tail_if_float oc (NonTail(z)) e2 e1 "ble" EQ
+      g'_non_tail_if_float oc (NonTail(z)) e1 e2 "ble" EQ
   (* 関数呼び出しの仮想命令の実装 *)
   | (Tail, CallCls(x, ys, zs)) -> (* 末尾呼び出し *)
       g'_args oc [(x, reg_cl)] ys zs;
@@ -267,7 +267,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       g'_args oc [(x, reg_cl)] ys zs;
       let ss = stacksize () in
 	(* Printf.fprintf oc "\tstw\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp; *)
-        emit_inst (Stl (rlr, ss - 4, rsp));
+        emit_inst (Stl (rlr, ss - wordsize, rsp));
 	(* Printf.fprintf oc "\taddi\t%s, %s, %d\n" reg_sp reg_sp ss; *)
         emit_inst (Addl (rsp, RIImm ss, rsp));
 	(* Printf.fprintf oc "\tlwz\t%s, 0(%s)\n" reg_tmp (reg reg_cl); *)
@@ -278,12 +278,13 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
 	(* Printf.fprintf oc "\tsubi\t%s, %s, %d\n" reg_sp reg_sp ss;
 	Printf.fprintf oc "\tlwz\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp; *)
         emit_inst (Subl (rsp, RIImm ss, rsp));
-        emit_inst (Ldl (rtmp, ss - 4, rsp));
+        emit_inst (Ldl (rtmp, ss - wordsize, rsp));
 	(if List.mem a allregs && a <> regs.(0) then 
 	   (* Printf.fprintf oc "\tmr\t%s, %s\n" (reg a) (reg regs.(0)) *)
            emit_inst (Inst.mov (Reg 0) (reg_of_string a)) 
 	 else if List.mem a allfregs && a <> fregs.(0) then 
-	   Printf.fprintf oc "\tfmr\t%s, %s\n" (reg a) (reg fregs.(0)));
+           emit_inst (Inst.fmov (FReg 0) (freg_of_string a)));
+	   (* Printf.fprintf oc "\tfmr\t%s, %s\n" (reg a) (reg fregs.(0))); *)
 	(* Printf.fprintf oc "\tmtlr\t%s\n" reg_tmp *)
         emit_inst (Inst.mov rtmp rlr)
   | (NonTail(a), CallDir(Id.L(x), ys, zs)) -> 
@@ -291,7 +292,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       g'_args oc [] ys zs;
       let ss = stacksize () in
 	(* Printf.fprintf oc "\tstw\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp; *)
-        emit_inst (Stl (rlr, ss - 4, rsp));
+        emit_inst (Stl (rlr, ss - wordsize, rsp));
 	(* Printf.fprintf oc "\taddi\t%s, %s, %d\n" reg_sp reg_sp ss; *)
         emit_inst (Addl (rsp, RIImm ss, rsp));
 	(* Printf.fprintf oc "\tbl\t%s\n" x; *)
@@ -299,7 +300,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
 	(* Printf.fprintf oc "\tsubi\t%s, %s, %d\n" reg_sp reg_sp ss; *)
         emit_inst (Subl (rsp, RIImm ss, rsp));
 	(* Printf.fprintf oc "\tlwz\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp; *)
-        emit_inst (Ldl (rlr, ss - 4, rsp));
+        emit_inst (Ldl (rlr, ss - wordsize, rsp));
 	(if List.mem a allregs && a <> regs.(0) then
 	   (* Printf.fprintf oc "\tmr\t%s, %s\n" (reg a) (reg regs.(0)) *)
            emit_inst (Inst.mov (Reg 0) (reg_of_string a))
