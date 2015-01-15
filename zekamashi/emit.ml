@@ -49,6 +49,7 @@ let rlr = Reg 29
 let rhp = Reg 27
 let frtmp = FReg 30
 let rcl = Reg 26
+let rtmp2 = Reg 25 (* TODO ad-hoc temporary register for JMP instruction, since operands must differ *)
 
 let ri_of_ri r = match r with
   | V x ->
@@ -255,7 +256,7 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       g'_args oc [(x, reg_cl)] ys zs;
       (* Printf.fprintf oc "\tlwz\t%s, 0(%s)\n" (reg reg_sw) (reg reg_cl); *)
       emit_inst (Ldl (rtmp, 0, reg_of_string reg_cl));
-      emit_inst (Jmp (rtmp, rtmp))
+      emit_inst (Jmp (rtmp2, rtmp))
       (* Printf.fprintf oc "\tmtctr\t%s\n\tbctr\n" (reg reg_sw); *)
   | (Tail, CallDir(Id.L(x), ys, zs)) -> (* 末尾呼び出し *)
       g'_args oc [] ys zs;

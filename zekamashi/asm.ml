@@ -49,8 +49,9 @@ let fletd (x, e1, e2) = Let ((x, Type.Float), e1, e2)
 (* seq : exp * t -> t *)
 let seq (e1, e2) = Let ((Id.gentmp Type.Unit, Type.Unit), e1, e2)
 
-let regs = Array.init 27 (fun i -> Printf.sprintf "%%R%d" i)
-(* let regs = Array.init 27 (fun i -> Printf.sprintf "_R_%d" i) *)
+(* let regs = Array.init 27 (fun i -> Printf.sprintf "%%R%d" i) *)
+(* TODO ad-hoc modification, see emit.ml *)
+let regs = Array.append (Array.init 25 (fun i -> Printf.sprintf "%%R%d" i)) (Array.make 1 "%R26")
 let fregs = Array.init 32 (fun i -> Printf.sprintf "%%f%d" i)
 let allregs = Array.to_list regs
 let allfregs = Array.to_list fregs
