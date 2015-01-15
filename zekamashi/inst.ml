@@ -48,6 +48,7 @@ type zek_inst =
   | FBC of cond * freg * label
   | Cmp of cmp * reg * reg_or_imm * reg
   | Sll of reg * reg_or_imm * reg
+  | Srl of reg * reg_or_imm * reg
   | Lds of freg * disp16 * reg
   | Sts of freg * disp16 * reg
   | Cmps of cmp * freg * freg * freg
@@ -111,6 +112,7 @@ let show_zek_inst = function
   | FBC (c, a, d) -> "\tF" ^ show_cond c ^ "\t" ^ show_freg a ^ ", " ^ d
   | Cmp (op, a, b, c) -> "\tCMP" ^ show_cmp op ^ "\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
   | Sll (a, b, c) -> "\tSLL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
+  | Srl (a, b, c) -> "\tSRL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
   | Lds (a, d, b) -> "\tLDS\t" ^ show_freg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
   | Sts (a, d, b) -> "\tSTS\t" ^ show_freg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"
   | Cmps (op, a, b, c) -> "\tCMPS" ^ show_cmp op ^ "\t" ^ show_freg a ^ ", " ^ show_freg b ^ ", " ^ show_freg c

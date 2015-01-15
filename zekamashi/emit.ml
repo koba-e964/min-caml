@@ -36,12 +36,12 @@ let reg r =
 let reg_of_string r = 
   if is_reg r
   then Reg (int_of_string (String.sub r 2 (String.length r - 2)))
-  else failwith "invalid regname" 
+  else failwith ("invalid regname" ^ r)
 
 let freg_of_string r = 
   if is_reg r
   then FReg (int_of_string (String.sub r 2 (String.length r - 2)))
-  else failwith "invalid regname" 
+  else failwith ("invalid regname" ^ r)
 
 let rsp = Reg 30
 let rtmp = Reg 28
@@ -121,6 +121,12 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(x), Arith (Syntax.AMul, y, C 2)) ->
       let Reg ry = reg_of_string y in
       emit_inst (Addl (Reg ry, RIReg ry, reg_of_string x))
+  | (NonTail(x), Arith (Syntax.AMul, y, C 4)) ->
+      let Reg ry = reg_of_string y in
+      emit_inst (Sll (Reg ry, RIImm 2, reg_of_string x))
+  | (NonTail(x), Arith (Syntax.ADiv, y, C 2)) ->
+      let Reg ry = reg_of_string y in
+      emit_inst (Srl (Reg ry, RIImm 1, reg_of_string x))
   | (NonTail(x), Arith (_, y, z)) -> 
       failwith "arith is not supported (emit.ml)"
   | (NonTail(x), Slw(y, z)) -> 
@@ -392,7 +398,7 @@ let f oc asmlib (Prog(data, fundefs, e)) =
   emit_inst (Inst.Comment "main program start");
   stackset := S.empty;
   stackmap := [];
-  g oc (NonTail("_R_0"), e);
+  g oc (NonTail("%R0"), e);
   emit_inst (Inst.Comment "main program end");
   emit_inst (Br (rtmp, "min_caml_main_end"));
   List.iter (fun fundef -> h oc fundef) fundefs;
