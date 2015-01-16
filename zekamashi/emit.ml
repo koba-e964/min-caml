@@ -397,7 +397,7 @@ let g_vardef_body oc { vname = (Id.L x, ty); vbody = e } =
   g oc (NonTail "%R0", e);
   emit_inst (Inst.Mov (rtmp, gl_name));
   emit_inst (Stl (Reg 0, 0, rtmp));
-  emit_inst (Inst.mov rtmp rlr);
+  emit_inst (Ret (rtmp, rlr));
   emit_inst (Label gl_name);
   emit_inst (Lda (Reg 31, 0, Reg 31))
 
