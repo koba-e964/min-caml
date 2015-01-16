@@ -39,8 +39,10 @@ and exp = (* 一つ一つの命令に対応する式 *)
   | Restore of Id.t (* スタック変数から値を復元 *)
 type fundef =
     { name : Id.l; args : Id.t list; fargs : Id.t list; body : t; ret : Type.t }
+type vardef =
+    { vname : Id.l * Type.t; vbody : t }
 (* プログラム全体 = 浮動小数点数テーブル + トップレベル関数 + メインの式 *)
-type prog = Prog of (Id.l * float) list * fundef list * t
+type prog = Prog of vardef list * fundef list * t
 
 (* shorthand of Let for float *)
 (* fletd : Id.t * exp * t -> t *)

@@ -391,17 +391,30 @@ let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
   stackmap := [];
   g oc (Tail, e)
 
-let f oc asmlib (Prog(data, fundefs, e)) =
+let g_vardef_body oc { vname = (Id.L x, ty); vbody = e } =
+  let gl_name = "min_caml_" ^ x in
+  emit_inst (Label (x ^ ".init"));
+  g oc (NonTail "%R0", e);
+  emit_inst (Inst.Mov (rtmp, gl_name));
+  emit_inst (Stl (Reg 0, 0, rtmp));
+  emit_inst (Inst.mov rtmp rlr);
+  emit_inst (Label gl_name);
+  emit_inst (Lda (Reg 31, 0, Reg 31))
+
+let f oc asmlib (Prog(vardefs, fundefs, e)) =
   Format.eprintf "generating assembly...@.";
   emit_inst (li 0x4000 rsp);
   emit_inst (li 0x6000 rhp);
   emit_inst (Inst.Comment "main program start");
   stackset := S.empty;
   stackmap := [];
+  List.iter (fun { vname = (Id.L x, _); _ } -> emit_inst (Bsr (rlr, x ^ ".init")))
+    vardefs;
   g oc (NonTail("%R0"), e);
   emit_inst (Inst.Comment "main program end");
   emit_inst (Br (rtmp, "min_caml_main_end"));
-  List.iter (fun fundef -> h oc fundef) fundefs;
+  List.iter (h oc) fundefs;
+  List.iter (g_vardef_body oc) vardefs;
   emit_inst (ExtFile asmlib);
   emit_inst (Label "min_caml_main_end");
   emit_inst (mov (Reg 0) (Reg 0));

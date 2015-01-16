@@ -2,8 +2,6 @@
 
 open Asm
 
-let data = ref [] (* 浮動小数点数の定数テーブル *)
-
 let fsqrt = ref false
 
 let classify xts ini addf addi =
@@ -143,9 +141,11 @@ let h { Closure.name = (Id.L(x), t); Closure.args = yts;
 	  { name = Id.L(x); args = int; fargs = float; body = load; ret = t2 }
       | _ -> assert false
 
+let g_vardef { Closure.vname = namety; Closure.vbody = expr } =
+  { vname = namety; vbody = g M.empty expr }
+
 (* プログラム全体の仮想マシンコード生成 *)
 let f (Closure.Prog (vardefs, fundefs, e)) =
-  data := [];
   let fundefs = List.map h fundefs in
   let e = g M.empty e in
-    Prog (!data, fundefs, e)
+    Prog (List.map g_vardef vardefs, fundefs, e)
