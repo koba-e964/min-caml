@@ -40,7 +40,7 @@ min_caml_print_char:
 mcpc:
 	LDL $3, 2($1)
 	AND $3, 1, $4
-	BEQ $4, mcpi0
+	BEQ $4, mcpc
 	AND $0, 255, $4
 	STL $4, 3($1)
 	RET $28, ($29)
