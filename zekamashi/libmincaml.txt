@@ -45,6 +45,50 @@ mcpc:
 	STL $4, 3($1)
 	RET $28, ($29)
 
+min_caml_read_int:
+# while (*0x100000 & 1 == 0) {}
+#   data = *0x100001;
+	LDAH $1, 16($31)
+	LDA $2, 0($0)
+mcri0:
+	LDL $3, 0($1)
+	AND $3, 1, $4
+	BEQ $4, mcri0
+	LDL $4, 1($1)
+	SLL $4, 0, $4
+	BIS $0, $4, $0
+mcri1:
+	LDL $3, 0($1)
+	AND $3, 1, $4
+	BEQ $4, mcri1
+	LDL $4, 1($1)
+	SLL $4, 8, $4
+	BIS $0, $4, $0
+mcri2:
+	LDL $3, 0($1)
+	AND $3, 1, $4
+	BEQ $4, mcri2
+	LDL $4, 1($1)
+	SLL $4, 16, $4
+	BIS $0, $4, $0
+mcri3:
+	LDL $3, 0($1)
+	AND $3, 1, $4
+	BEQ $4, mcri3
+	LDL $4, 1($1)
+	SLL $4, 24, $4
+	BIS $0, $4, $0
+
+	RET $28, ($29)
+
+min_caml_read_float:
+	STL $29, 0($30)
+	LDA $30, 1($30)
+	BSR $29, min_caml_read_int
+	LDA $30, -1($30)
+	LDL $29, 0($30)
+	ITOFS $0, $f0
+	RET $28, ($29)
 
 min_caml_int_of_float:
 min_caml_truncate:
