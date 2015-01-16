@@ -205,8 +205,13 @@ let h { name = Id.L(x); args = ys; fargs = zs; body = e; ret = t } = (* 関数のレ
   let (e', regenv') = g (a, t) (Ans(Mr(a))) regenv e in
   { name = Id.L(x); args = arg_regs; fargs = farg_regs; body = e'; ret = t }
 
-let f (Prog(data, fundefs, e)) = (* プログラム全体のレジスタ割り当て (caml2html: regalloc_f) *)
+let g_vardef { vname = x; vbody = expr } =
+  let e', _regenv' = g (Id.gentmp Type.Unit, Type.Unit) (Ans(Nop)) M.empty expr in
+  { vname = x; vbody = e' }
+
+let f (Prog (vardefs, fundefs, e)) = (* プログラム全体のレジスタ割り当て (caml2html: regalloc_f) *)
   Format.eprintf "register allocation: may take some time (up to a few minutes, depending on the size of functions)@.";
+  let vardefs' = List.map g_vardef vardefs in
   let fundefs' = List.map h fundefs in
   let e', regenv' = g (Id.gentmp Type.Unit, Type.Unit) (Ans(Nop)) M.empty e in
-  Prog(data, fundefs', e')
+  Prog (vardefs', fundefs', e')

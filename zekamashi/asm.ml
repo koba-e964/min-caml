@@ -115,5 +115,52 @@ let show_id_or_imm = function
   | V x -> "V:" ^ x
   | C i -> "C:" ^ string_of_int i
 
-let show_prog _ = "Asm.show_prog is not yet implemented."
+let rec show_exp = function
+  | Nop -> "nop"
+  | Li x -> "li " ^ string_of_int x
+  | FLi f -> "fli " ^ string_of_float f
+  | SetL (Id.L l) -> "setl " ^ l 
+  | Comment (_) -> "(* *)"
+  | Restore x -> "restore " ^ x
+  | Mr x -> "mr " ^ x
+  | Neg x -> "neg " ^ x
+  | FMr x -> "fmr " ^ x
+  | FNeg x -> "fneg " ^ x
+  | Save (x, y) -> "save " ^ x ^ ", " ^ y
+  | Add (x, y') -> "+ " ^ x ^ show_id_or_imm y'
+  | Sub (x, y') -> "- " ^ x ^ show_id_or_imm y'
+  | Arith (AMul, x, y') -> "+ " ^ x ^ show_id_or_imm y'
+  | Arith (ADiv, x, y') -> "- " ^ x ^ show_id_or_imm y'
+  | Slw (x, y') -> "<< " ^ x ^ show_id_or_imm y'
+  | Lfd (x, y') -> "lfd " ^ x ^ "+" ^ show_id_or_imm y'
+  | Lwz (x, y') ->  "lwz " ^ x ^ "+" ^ show_id_or_imm y'
+  | FAdd (x, y) | FSub (x, y) | FMul (x, y) | FDiv (x, y) ->
+      "flop "
+  | Stw (x, y, z') | Stfd (x, y, z') -> "store"
+  | IfEq (x, y', e1, e2) | IfLE (x, y', e1, e2) | IfGE (x, y', e1, e2) -> 
+      "conditional"
+  | IfFEq (x, y, e1, e2) | IfFLE (x, y, e1, e2) ->
+      "float conditional"
+  | CallCls (nm, ys, zs) -> "call-cls " ^ nm ^ "(" ^ string_of_list ys ^ ") (" ^ string_of_list zs ^ ")"
+  | CallDir (Id.L nm, ys, zs) -> "call-dir " ^ nm ^ "(" ^ string_of_list ys ^ ") (" ^ string_of_list zs ^ ")"
+and show_asm_t = function
+  | Ans e -> show_exp e
+  | Let ((nm, ty), e1, e2) ->
+     "let " ^ nm ^ " := " ^ show_exp e1 ^ "\n" ^ show_asm_t e2
+
+and show_vardef { vname = (Id.L n, ty); vbody = exp } =
+  "vardef " ^ n ^ " : " ^ Type.show_type_t ty ^ " :=\n" ^ show_asm_t exp ^ "\n"
+and string_of_list ls = match ls with
+  | []        -> ""
+  |  hd :: tl -> List.fold_left (fun x y -> x ^ "," ^ y) hd tl
+
+let show_fundef { name = Id.L id; args = ls; fargs; body; ret }
+  = "fundef " ^ id ^ "(" ^ string_of_list (ls @ fargs) ^ ") : "  ^ Type.show_type_t ret ^ " {\n" ^ show_asm_t body ^ "\n}"
+
+let show_prog (Prog (vardefs, fundefs, expr)) =
+  List.fold_left (fun x y -> x ^ show_fundef y ^ "\n") "" fundefs
+  ^ List.fold_left (fun x y -> x ^ show_vardef y ^ "\n") "" vardefs
+  ^ show_asm_t expr
+
+
 
