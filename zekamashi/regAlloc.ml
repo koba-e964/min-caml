@@ -44,10 +44,10 @@ let rec alloc dest cont regenv x t =
   assert (not (M.mem x regenv));
   let all =
     match t with
-    | Type.Unit -> ["%r0"] (* dummy *)
+    | Type.Unit -> ["%R0"] (* dummy *)
     | Type.Float -> allfregs
     | _ -> allregs in
-  if all = ["%r0"] then Alloc("%r0") else (* [XX] ad hoc optimization *)
+  if all = ["%R0"] then Alloc("%R0") else (* [XX] ad hoc optimization *)
   if is_reg x then Alloc(x) else
   let free = fv cont in
   try
