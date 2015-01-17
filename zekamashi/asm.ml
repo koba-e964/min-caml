@@ -129,8 +129,8 @@ let rec show_exp = function
   | Save (x, y) -> "save " ^ x ^ ", " ^ y
   | Add (x, y') -> "+ " ^ x ^ show_id_or_imm y'
   | Sub (x, y') -> "- " ^ x ^ show_id_or_imm y'
-  | Arith (AMul, x, y') -> "+ " ^ x ^ show_id_or_imm y'
-  | Arith (ADiv, x, y') -> "- " ^ x ^ show_id_or_imm y'
+  | Arith (Syntax.AMul, x, y') -> "+ " ^ x ^ show_id_or_imm y'
+  | Arith (Syntax.ADiv, x, y') -> "- " ^ x ^ show_id_or_imm y'
   | Slw (x, y') -> "<< " ^ x ^ show_id_or_imm y'
   | Lfd (x, y') -> "lfd " ^ x ^ "+" ^ show_id_or_imm y'
   | Lwz (x, y') ->  "lwz " ^ x ^ "+" ^ show_id_or_imm y'
