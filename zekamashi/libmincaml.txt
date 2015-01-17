@@ -102,8 +102,22 @@ min_caml_float_of_int:
 	RET $28, ($29)
 
 min_caml_floor:
+	CMPSLE $f0, $f31, $f1
+	FBNE $f1, mcf_neg
+	#positive
 	CVTSL/C $f0, $f0
 	CVTLS $f0, $f0
+	RET $28, ($29)
+mcf_neg: #negative
+	CVTSL/C $f0, $f1
+	CVTLS $f1, $f1
+	CMPSEQ $f0, $f1, $f2
+	FBNE $f2, mcf_neg_exact
+	# if not exact, subtract 1.0 from given value
+	LDAH $0, 0x3f80($31)
+	ITOFS $0, $f17
+	SUBS $f1, $f17, $f0
+mcf_neg_exact:
 	RET $28, ($29)
 
 min_caml_sqrt:
