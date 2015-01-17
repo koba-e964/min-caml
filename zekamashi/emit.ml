@@ -131,20 +131,15 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       failwith "arith is not supported (emit.ml)"
   | (NonTail(x), Slw(y, z)) -> 
       emit_inst (Sll (reg_of_string y, ri_of_ri z, reg_of_string x)) 
-      (* Printf.fprintf oc "\tslwi\t%s, %s, %d\n" (reg x) (reg y) z *)
   | (NonTail(x), Lwz(y, V(z))) ->
       emit_inst (Addl (reg_of_string y, ri_of_reg (reg_of_string z), rtmp));
       emit_inst (Ldl (reg_of_string x, 0, rtmp))
-      (* Printf.fprintf oc "\tlwzx\t%s, %s, %s\n" (reg x) (reg y) (reg z) *)
   | (NonTail(x), Lwz(y, C(z))) -> 
-      (* Printf.fprintf oc "\tlwz\t%s, %d(%s)\n" (reg x) z (reg y) *)
       emit_inst (Ldl (reg_of_string x, z, reg_of_string y));
   | (NonTail(_), Stw(x, y, V(z))) ->
       emit_inst (Addl (reg_of_string y, ri_of_reg (reg_of_string z), rtmp));
       emit_inst (Stl (reg_of_string x, 0, rtmp))
-      (* Printf.fprintf oc "\tstwx\t%s, %s, %s\n" (reg x) (reg y) (reg z) *)
   | (NonTail(_), Stw(x, y, C(z))) -> 
-      (* Printf.fprintf oc "\tstw\t%s, %d(%s)\n" (reg x) z (reg y) *)
       emit_inst (Stl (reg_of_string x, z, reg_of_string y));
   | (NonTail(x), FMr(y)) when x = y -> ()
   | (NonTail(x), FMr(y)) -> emit_inst (Inst.fmov (freg_of_string y) (freg_of_string x))
@@ -174,7 +169,6 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(_), Save(x, y))
       when List.mem x allregs && not (S.mem y !stackset) ->
       save y;
-	(* Printf.fprintf oc "\tstw\t%s, %d(%s)\n" (reg x) (offset y) reg_sp *)
       emit_inst (Stl (reg_of_string x, offset y, rsp))
 
   | (NonTail(_), Save(x, y)) 
@@ -184,7 +178,6 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(_), Save(x, y)) -> assert (S.mem y !stackset); ()
   (* 復帰の仮想命令の実装 *)
   | (NonTail(x), Restore(y)) when List.mem x allregs ->
-      (* Printf.fprintf oc "\tlwz\t%s, %d(%s)\n" (reg x) (offset y) reg_sp *)
       emit_inst (Ldl (reg_of_string x, offset y, rsp))
   | (NonTail(x), Restore(y)) ->
       assert (List.mem x allfregs);
@@ -226,11 +219,9 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       g'_tail_if oc e1 e2 "bge" NE
   | (Tail, IfFEq(x, y, e1, e2)) ->
       emit_inst (Cmps (CEQ, freg_of_string x, freg_of_string y, frtmp));
-      (* Printf.fprintf oc "\tfcmpu\tcr7, %s, %s\n" (reg x) (reg y); *)
       g'_tail_if_float oc e1 e2 "beq" EQ
   | (Tail, IfFLE(x, y, e1, e2)) ->
       emit_inst (Cmps (CLE, freg_of_string x, freg_of_string y, frtmp));
-      (* Printf.fprintf oc "\tfcmpu\tcr7, %s, %s\n" (reg x) (reg y); *)
       g'_tail_if_float oc e1 e2 "ble" EQ
   | (NonTail(z), IfEq(x, y, e1, e2)) ->
       emit_inst (Subl (reg_of_string x, ri_of_ri y, rtmp));
@@ -251,120 +242,87 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" NE
   | (NonTail(z), IfFEq(x, y, e1, e2)) ->
       emit_inst (Cmps (CEQ, freg_of_string x, freg_of_string y, frtmp));
-      (* Printf.fprintf oc "\tfcmpu\tcr7, %s, %s\n" (reg x) (reg y); *)
-      g'_non_tail_if_float oc (NonTail(z)) e1 e2 "beq" EQ
+      g'_non_tail_if_float oc (NonTail(z)) e1 e2 "nt_fbeq" EQ
   | (NonTail(z), IfFLE(x, y, e1, e2)) ->
       emit_inst (Cmps (CLE, freg_of_string x, freg_of_string y, frtmp));
-      (* Printf.fprintf oc "\tfcmpu\tcr7, %s, %s\n" (reg x) (reg y); *)
-      g'_non_tail_if_float oc (NonTail(z)) e1 e2 "ble" EQ
+      g'_non_tail_if_float oc (NonTail(z)) e1 e2 "nt_fble" EQ
   (* 関数呼び出しの仮想命令の実装 *)
   | (Tail, CallCls(x, ys, zs)) -> (* 末尾呼び出し *)
       g'_args oc [(x, reg_cl)] ys zs;
-      (* Printf.fprintf oc "\tlwz\t%s, 0(%s)\n" (reg reg_sw) (reg reg_cl); *)
       emit_inst (Ldl (rtmp, 0, reg_of_string reg_cl));
       emit_inst (Jmp (rtmp2, rtmp))
-      (* Printf.fprintf oc "\tmtctr\t%s\n\tbctr\n" (reg reg_sw); *)
   | (Tail, CallDir(Id.L(x), ys, zs)) -> (* 末尾呼び出し *)
       g'_args oc [] ys zs;
-      (* Printf.fprintf oc "\tb\t%s\n" x *)
       emit_inst (Br (rtmp, x))
   | (NonTail(a), CallCls(x, ys, zs)) ->
-      (* Printf.fprintf oc "\tmflr\t%s\n" reg_tmp; *)
       g'_args oc [(x, reg_cl)] ys zs;
       let ss = stacksize () in
-	(* Printf.fprintf oc "\tstw\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp; *)
         emit_inst (Stl (rlr, ss - wordsize, rsp));
-	(* Printf.fprintf oc "\taddi\t%s, %s, %d\n" reg_sp reg_sp ss; *)
         emit_inst (Addl (rsp, RIImm ss, rsp));
-	(* Printf.fprintf oc "\tlwz\t%s, 0(%s)\n" reg_tmp (reg reg_cl); *)
         emit_inst (Ldl (rtmp, 0 * wordsize, rcl));
-	(* Printf.fprintf oc "\tmtctr\t%s\n" reg_tmp;
-	Printf.fprintf oc "\tbctrl\n"; *)
         emit_inst (Jsr (rlr, rtmp));
-	(* Printf.fprintf oc "\tsubi\t%s, %s, %d\n" reg_sp reg_sp ss;
-	Printf.fprintf oc "\tlwz\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp; *)
         emit_inst (Subl (rsp, RIImm ss, rsp));
         emit_inst (Ldl (rtmp, ss - wordsize, rsp));
 	(if List.mem a allregs && a <> regs.(0) then 
-	   (* Printf.fprintf oc "\tmr\t%s, %s\n" (reg a) (reg regs.(0)) *)
            emit_inst (Inst.mov (Reg 0) (reg_of_string a)) 
 	 else if List.mem a allfregs && a <> fregs.(0) then 
            emit_inst (Inst.fmov (FReg 0) (freg_of_string a)));
-	   (* Printf.fprintf oc "\tfmr\t%s, %s\n" (reg a) (reg fregs.(0))); *)
-	(* Printf.fprintf oc "\tmtlr\t%s\n" reg_tmp *)
         emit_inst (Inst.mov rtmp rlr)
   | (NonTail(a), CallDir(Id.L(x), ys, zs)) -> 
-      (* Printf.fprintf oc "\tmflr\t%s\n" reg_tmp; *)
       g'_args oc [] ys zs;
       let ss = stacksize () in
-	(* Printf.fprintf oc "\tstw\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp; *)
         emit_inst (Stl (rlr, ss - wordsize, rsp));
-	(* Printf.fprintf oc "\taddi\t%s, %s, %d\n" reg_sp reg_sp ss; *)
         emit_inst (Addl (rsp, RIImm ss, rsp));
-	(* Printf.fprintf oc "\tbl\t%s\n" x; *)
         emit_inst (Bsr (rlr, x));
-	(* Printf.fprintf oc "\tsubi\t%s, %s, %d\n" reg_sp reg_sp ss; *)
         emit_inst (Subl (rsp, RIImm ss, rsp));
-	(* Printf.fprintf oc "\tlwz\t%s, %d(%s)\n" reg_tmp (ss - 4) reg_sp; *)
         emit_inst (Ldl (rlr, ss - wordsize, rsp));
 	(if List.mem a allregs && a <> regs.(0) then
-	   (* Printf.fprintf oc "\tmr\t%s, %s\n" (reg a) (reg regs.(0)) *)
            emit_inst (Inst.mov (Reg 0) (reg_of_string a))
 	 else if List.mem a allfregs && a <> fregs.(0) then
-           emit_inst (Inst.fmov (FReg 0) (freg_of_string a)))
+           emit_inst (Inst.fmov (FReg 0) (freg_of_string a))
+         else if not (List.mem a allregs || List.mem a allfregs) then
+           failwith ("neither regs nor fregs: " ^ a))
 and g'_tail_if oc e1 e2 b bcond = 
   let b_else = Id.genid (b ^ "_else") in
-    (* Printf.fprintf oc "\t%s\tcr7, %s\n" bn b_else; *)
     emit_inst (BC (bcond, rtmp, b_else));
     let stackset_back = !stackset in
       g oc (Tail, e1);
-      (* Printf.fprintf oc "%s:\n" b_else; *)
       emit_inst (Label b_else);
       stackset := stackset_back;
       g oc (Tail, e2)
 and g'_non_tail_if oc dest e1 e2 b bcond = 
   let b_else = Id.genid (b ^ "_else") in
   let b_cont = Id.genid (b ^ "_cont") in
-    (* Printf.fprintf oc "\t%s\tcr7, %s\n" bn b_else; *)
     emit_inst (BC (bcond, rtmp, b_else));
     let stackset_back = !stackset in
       g oc (dest, e1);
       let stackset1 = !stackset in
-	(* Printf.fprintf oc "\tb\t%s\n" b_cont; *)
         emit_inst (Br (rtmp, b_cont));
-	(* Printf.fprintf oc "%s:\n" b_else; *)
         emit_inst (Label b_else);
 	stackset := stackset_back;
 	g oc (dest, e2);
-	(* Printf.fprintf oc "%s:\n" b_cont; *)
         emit_inst (Label b_cont);
 	let stackset2 = !stackset in
 	  stackset := S.inter stackset1 stackset2
 and g'_tail_if_float oc e1 e2 b bcond = 
   let b_else = Id.genid (b ^ "_else") in
-    (* Printf.fprintf oc "\t%s\tcr7, %s\n" bn b_else; *)
     emit_inst (FBC (bcond, frtmp, b_else));
     let stackset_back = !stackset in
       g oc (Tail, e1);
-      (* Printf.fprintf oc "%s:\n" b_else; *)
       emit_inst (Label b_else);
       stackset := stackset_back;
       g oc (Tail, e2)
 and g'_non_tail_if_float oc dest e1 e2 b bcond = 
   let b_else = Id.genid (b ^ "_else") in
   let b_cont = Id.genid (b ^ "_cont") in
-    (* Printf.fprintf oc "\t%s\tcr7, %s\n" bn b_else; *)
     emit_inst (FBC (bcond, frtmp, b_else));
     let stackset_back = !stackset in
       g oc (dest, e1);
       let stackset1 = !stackset in
-	(* Printf.fprintf oc "\tb\t%s\n" b_cont; *)
         emit_inst (Br (rtmp, b_cont));
-	(* Printf.fprintf oc "%s:\n" b_else; *)
         emit_inst (Label b_else);
 	stackset := stackset_back;
 	g oc (dest, e2);
-	(* Printf.fprintf oc "%s:\n" b_cont; *)
         emit_inst (Label b_cont);
 	let stackset2 = !stackset in
 	  stackset := S.inter stackset1 stackset2
@@ -394,6 +352,8 @@ let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
 let g_vardef_body oc { vname = (Id.L x, ty); vbody = e } =
   let gl_name = "min_caml_" ^ x in
   emit_inst (Label (x ^ ".init"));
+  stackset := S.empty;
+  stackmap := [];
   g oc (NonTail "%R0", e);
   emit_inst (Inst.Mov (rtmp, gl_name));
   emit_inst (Stl (Reg 0, 0, rtmp));
