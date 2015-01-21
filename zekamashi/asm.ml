@@ -58,14 +58,12 @@ let fregs = Array.init 30 (fun i -> Printf.sprintf "%%f%d" i)
 let allregs = Array.to_list regs
 let allfregs = Array.to_list fregs
 let reg_cl = regs.(Array.length regs - 1) (* closure address *)
-let reg_sw = regs.(Array.length regs - 2) (* temporary for swap *)
-let reg_fsw = fregs.(Array.length fregs - 1) (* temporary for swap *)
 let reg_hp = "%R27"
-let reg_sp = "%R30"
 let reg_tmp = "%R28"
+let reg_sp = "%R30"
 let freg_tmp = "%f30"
 
-let wordsize = 4
+let wordsize = 1
 
 (* is_reg : Id.t -> bool *)
 let is_reg x = x.[0] = '%'
@@ -127,20 +125,33 @@ let rec show_exp = function
   | FMr x -> "fmr " ^ x
   | FNeg x -> "fneg " ^ x
   | Save (x, y) -> "save " ^ x ^ ", " ^ y
-  | Add (x, y') -> "+ " ^ x ^ show_id_or_imm y'
-  | Sub (x, y') -> "- " ^ x ^ show_id_or_imm y'
-  | Arith (Syntax.AMul, x, y') -> "+ " ^ x ^ show_id_or_imm y'
-  | Arith (Syntax.ADiv, x, y') -> "- " ^ x ^ show_id_or_imm y'
+  | Add (x, y') -> "+ " ^ x ^ ", " ^ show_id_or_imm y'
+  | Sub (x, y') -> "- " ^ x ^ ", " ^ show_id_or_imm y'
+  | Arith (Syntax.AMul, x, y') -> "* " ^ x ^ ", " ^ show_id_or_imm y'
+  | Arith (Syntax.ADiv, x, y') -> "/ " ^ x ^ ", " ^ show_id_or_imm y'
   | Slw (x, y') -> "<< " ^ x ^ show_id_or_imm y'
   | Lfd (x, y') -> "lfd " ^ x ^ "+" ^ show_id_or_imm y'
   | Lwz (x, y') ->  "lwz " ^ x ^ "+" ^ show_id_or_imm y'
-  | FAdd (x, y) | FSub (x, y) | FMul (x, y) | FDiv (x, y) ->
-      "flop "
-  | Stw (x, y, z') | Stfd (x, y, z') -> "store"
-  | IfEq (x, y', e1, e2) | IfLE (x, y', e1, e2) | IfGE (x, y', e1, e2) -> 
-      "conditional"
-  | IfFEq (x, y, e1, e2) | IfFLE (x, y, e1, e2) ->
-      "float conditional"
+  | FAdd (x, y) ->
+    "+. " ^ x ^ ", " ^ y
+  | FSub (x, y) ->
+    "-. " ^ x ^ ", " ^ y
+  | FMul (x, y) ->
+    "*. " ^ x ^ ", " ^ y
+  | FDiv (x, y) ->
+    "/. " ^ x ^ ", " ^ y
+  | Stw (x, y, z') -> "stw " ^ x ^ ", " ^ y ^ " + " ^ show_id_or_imm z'
+  | Stfd (x, y, z') -> "stfd " ^ x ^ ", " ^ y ^ " + " ^ show_id_or_imm z'
+  | IfEq (x, y', e1, e2) ->
+    "if " ^ x ^ " = " ^ show_id_or_imm y' ^ " then\n" ^ show_asm_t e1 ^ "\nelse\n" ^ show_asm_t e2 ^ "\nend"
+  | IfLE (x, y', e1, e2) ->
+    "if " ^ x ^ " <= " ^ show_id_or_imm y' ^ " then\n" ^ show_asm_t e1 ^ "\nelse\n" ^ show_asm_t e2 ^ "\nend"
+  | IfGE (x, y', e1, e2) -> 
+    "if " ^ x ^ " >= " ^ show_id_or_imm y' ^ " then\n" ^ show_asm_t e1 ^ "\nelse\n" ^ show_asm_t e2 ^ "\nend"
+  | IfFEq (x, y, e1, e2) ->
+    "if " ^ x ^ " =. " ^ y ^ " then\n" ^ show_asm_t e1 ^ "\nelse\n" ^ show_asm_t e2 ^ "\nend"
+  | IfFLE (x, y, e1, e2) ->
+    "if " ^ x ^ " <=. " ^ y ^ " then\n" ^ show_asm_t e1 ^ "\nelse\n" ^ show_asm_t e2 ^ "\nend"
   | CallCls (nm, ys, zs) -> "call-cls " ^ nm ^ "(" ^ string_of_list ys ^ ") (" ^ string_of_list zs ^ ")"
   | CallDir (Id.L nm, ys, zs) -> "call-dir " ^ nm ^ "(" ^ string_of_list ys ^ ") (" ^ string_of_list zs ^ ")"
 and show_asm_t = function

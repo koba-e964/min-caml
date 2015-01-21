@@ -43,13 +43,13 @@ let freg_of_string r =
   then FReg (int_of_string (String.sub r 2 (String.length r - 2)))
   else failwith ("invalid regname" ^ r)
 
-let rsp = Reg 30
+let rtmp2 = Reg 25 (* TODO ad-hoc temporary register for JMP instruction, since operands must differ *)
+let rcl = Reg 26
+let rhp = Reg 27
 let rtmp = Reg 28
 let rlr = Reg 29
-let rhp = Reg 27
+let rsp = Reg 30
 let frtmp = FReg 30
-let rcl = Reg 26
-let rtmp2 = Reg 25 (* TODO ad-hoc temporary register for JMP instruction, since operands must differ *)
 
 let ri_of_ri r = match r with
   | V x ->
@@ -333,14 +333,14 @@ and g'_args oc x_reg_cl ys zs =
       (0, x_reg_cl) ys in
     List.iter
       (fun (y, r) -> emit_inst (Inst.mov (reg_of_string y) (reg_of_string r)))
-      (shuffle reg_sw yrs);
+      (shuffle reg_tmp yrs);
     let (d, zfrs) = 
       List.fold_left
 	(fun (d, zfrs) z -> (d + 1, (z, fregs.(d)) :: zfrs))
 	(0, []) zs in
       List.iter
         (fun (z, fr) -> emit_inst (Inst.fmov (freg_of_string z) (freg_of_string fr)))
-	(shuffle reg_fsw zfrs)
+	(shuffle freg_tmp zfrs)
 
 let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
   (* Printf.fprintf oc "%s:\n" x; *)
@@ -363,8 +363,8 @@ let g_vardef_body oc { vname = (Id.L x, ty); vbody = e } =
 
 let f oc asmlib (Prog(vardefs, fundefs, e)) =
   Format.eprintf "generating assembly...@.";
-  emit_inst (li 0x4000 rsp);
-  emit_inst (li 0x6000 rhp);
+  emit_inst (li 0x3000 rsp);
+  emit_inst (li 0x7000 rhp);
   emit_inst (Inst.Comment "main program start");
   stackset := S.empty;
   stackmap := [];

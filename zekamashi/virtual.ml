@@ -106,10 +106,10 @@ let rec g env = function (* 式の仮想マシンコード生成 *)
 	(match M.find x env with
 	   | Type.Array (Type.Unit) -> Ans (Nop)
 	   | Type.Array (Type.Float) ->
-	       Let ((offset, Type.Int), Slw (y, C (2)), (* sizeof(float) = wordsize *)
+	       Let ((offset, Type.Int), Slw (y, C 0), (* sizeof(float) = wordsize *)
 		    Ans (Lfd (x, V (offset))))
 	   | Type.Array (_) ->
-	       Let ((offset, Type.Int), Slw (y, C (2)),
+	       Let ((offset, Type.Int), Slw (y, C 0),
 		    Ans (Lwz (x, V (offset))))
 	   | _ -> assert false)
   | Closure.Put (x, y, z) ->
@@ -117,10 +117,10 @@ let rec g env = function (* 式の仮想マシンコード生成 *)
 	(match M.find x env with
 	   | Type.Array (Type.Unit) -> Ans (Nop)
 	   | Type.Array (Type.Float) -> 
-	       Let ((offset, Type.Int), Slw (y, C (2)),
+	       Let ((offset, Type.Int), Slw (y, C 0),
 		    Ans (Stfd (z, x, V (offset)))) 
 	   | Type.Array (_) ->
-	       Let ((offset, Type.Int), Slw (y, C (2)), 
+	       Let ((offset, Type.Int), Slw (y, C 0), 
 		    Ans (Stw (z, x, V (offset)))) 
 	   | _ -> assert false)
   | Closure.ExtArray (Id.L(x)) | Closure.ExtVar (Id.L x, _) ->

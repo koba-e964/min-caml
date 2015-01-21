@@ -49,11 +49,10 @@ val fregs : Id.t array
 val allregs : Id.t list
 val allfregs : Id.t list
 val reg_cl : Id.t
-val reg_sw : Id.t
-val reg_fsw : Id.t
 val reg_hp : Id.t
 val reg_sp : Id.t
 val reg_tmp : Id.t
+val freg_tmp : Id.t
 val is_reg : Id.t -> bool
 
 val wordsize : int
