@@ -106,22 +106,18 @@ let rec g env = function (* 式の仮想マシンコード生成 *)
 	(match M.find x env with
 	   | Type.Array (Type.Unit) -> Ans (Nop)
 	   | Type.Array (Type.Float) ->
-	       Let ((offset, Type.Int), Slw (y, C 0), (* sizeof(float) = wordsize *)
-		    Ans (Lfd (x, V (offset))))
+	       Ans (Lfd (x, V y))
 	   | Type.Array (_) ->
-	       Let ((offset, Type.Int), Slw (y, C 0),
-		    Ans (Lwz (x, V (offset))))
+	       Ans (Lwz (x, V y))
 	   | _ -> assert false)
   | Closure.Put (x, y, z) ->
       let offset = Id.genid "o" in 
 	(match M.find x env with
 	   | Type.Array (Type.Unit) -> Ans (Nop)
 	   | Type.Array (Type.Float) -> 
-	       Let ((offset, Type.Int), Slw (y, C 0),
-		    Ans (Stfd (z, x, V (offset)))) 
+	       Ans (Stfd (z, x, V y)) 
 	   | Type.Array (_) ->
-	       Let ((offset, Type.Int), Slw (y, C 0), 
-		    Ans (Stw (z, x, V (offset)))) 
+	       Ans (Stw (z, x, V y)) 
 	   | _ -> assert false)
   | Closure.ExtArray (Id.L(x)) | Closure.ExtVar (Id.L x, _) ->
       let uniq = Id.genid "extvar" in
