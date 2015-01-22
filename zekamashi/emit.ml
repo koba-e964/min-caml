@@ -234,10 +234,12 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       g'_tail_if oc e1 e2 "bge" rtmp NE
   | (Tail, IfFEq(x, y, e1, e2)) ->
       emit_inst (Cmps (CEQ, freg_of_string x, freg_of_string y, frtmp));
-      g'_tail_if_float oc e1 e2 "beq" EQ
+      g'_tail_if_float oc e1 e2 "beq" frtmp EQ
   | (Tail, IfFLE(x, y, e1, e2)) ->
       emit_inst (Cmps (CLE, freg_of_string x, freg_of_string y, frtmp));
-      g'_tail_if_float oc e1 e2 "ble" EQ
+      g'_tail_if_float oc e1 e2 "ble" frtmp EQ
+  | (Tail, IfF0(x, e1, e2)) ->
+      g'_tail_if_float oc e1 e2 "beq" (freg_of_string x) NE
   | (NonTail(z), IfEq(x, y, e1, e2)) ->
       if y = C 0 then
         g'_non_tail_if oc (NonTail z) e1 e2 "beq" (reg_of_string x) NE
@@ -269,10 +271,12 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" rtmp NE
   | (NonTail(z), IfFEq(x, y, e1, e2)) ->
       emit_inst (Cmps (CEQ, freg_of_string x, freg_of_string y, frtmp));
-      g'_non_tail_if_float oc (NonTail(z)) e1 e2 "nt_fbeq" EQ
+      g'_non_tail_if_float oc (NonTail(z)) e1 e2 "nt_fbeq" frtmp EQ
   | (NonTail(z), IfFLE(x, y, e1, e2)) ->
       emit_inst (Cmps (CLE, freg_of_string x, freg_of_string y, frtmp));
-      g'_non_tail_if_float oc (NonTail(z)) e1 e2 "nt_fble" EQ
+      g'_non_tail_if_float oc (NonTail(z)) e1 e2 "nt_fble" frtmp EQ
+  | (NonTail(z), IfF0(x, e1, e2)) ->
+      g'_non_tail_if_float oc (NonTail(z)) e1 e2 "nt_fbeq" (freg_of_string x) NE
   (* 関数呼び出しの仮想命令の実装 *)
   | (Tail, CallCls(x, ys, zs)) -> (* 末尾呼び出し *)
       g'_args oc [(x, reg_cl)] ys zs;
@@ -331,18 +335,18 @@ and g'_non_tail_if oc dest e1 e2 b rcond bcond =
         emit_inst (Label b_cont);
 	let stackset2 = !stackset in
 	  stackset := S.inter stackset1 stackset2
-and g'_tail_if_float oc e1 e2 b bcond = 
+and g'_tail_if_float oc e1 e2 b frcond bcond = 
   let b_else = Id.genid (b ^ "_else") in
-    emit_inst (FBC (bcond, frtmp, b_else));
+    emit_inst (FBC (bcond, frcond, b_else));
     let stackset_back = !stackset in
       g oc (Tail, e1);
       emit_inst (Label b_else);
       stackset := stackset_back;
       g oc (Tail, e2)
-and g'_non_tail_if_float oc dest e1 e2 b bcond = 
+and g'_non_tail_if_float oc dest e1 e2 b frcond bcond = 
   let b_else = Id.genid (b ^ "_else") in
   let b_cont = Id.genid (b ^ "_cont") in
-    emit_inst (FBC (bcond, frtmp, b_else));
+    emit_inst (FBC (bcond, frcond, b_else));
     let stackset_back = !stackset in
       g oc (dest, e1);
       let stackset1 = !stackset in

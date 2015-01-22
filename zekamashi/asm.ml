@@ -32,6 +32,7 @@ and exp = (* 一つ一つの命令に対応する式 *)
   | IfGE of Id.t * id_or_imm * t * t
   | IfFEq of Id.t * Id.t * t * t
   | IfFLE of Id.t * Id.t * t * t
+  | IfF0 of Id.t * t * t (* if x =. 0.0 then e1 else e2 *)
   (* closure address, integer arguments, and float arguments *)
   | CallCls of Id.t * Id.t list * Id.t list
   | CallDir of Id.l * Id.t list * Id.t list
@@ -90,6 +91,8 @@ let rec fv_exp = function
       x :: fv_id_or_imm y' @ remove_and_uniq S.empty (fv e1 @ fv e2)
   | IfFEq (x, y, e1, e2) | IfFLE (x, y, e1, e2) ->
       x :: y :: remove_and_uniq S.empty (fv e1 @ fv e2)
+  | IfF0 (x, e1, e2) ->
+      x :: remove_and_uniq S.empty (fv e1 @ fv e2)
   | CallCls (x, ys, zs) -> x :: ys @ zs
   | CallDir (_, ys, zs) -> ys @ zs
 and fv = function 
@@ -152,6 +155,8 @@ let rec show_exp = function
     "if " ^ x ^ " =. " ^ y ^ " then\n" ^ show_asm_t e1 ^ "\nelse\n" ^ show_asm_t e2 ^ "\nend"
   | IfFLE (x, y, e1, e2) ->
     "if " ^ x ^ " <=. " ^ y ^ " then\n" ^ show_asm_t e1 ^ "\nelse\n" ^ show_asm_t e2 ^ "\nend"
+  | IfF0 (x, e1, e2) ->
+    "if " ^ x ^ " =.0.0 then\n" ^ show_asm_t e1 ^ "\nelse\n" ^ show_asm_t e2 ^ "\nend"
   | CallCls (nm, ys, zs) -> "call-cls " ^ nm ^ "(" ^ string_of_list ys ^ ") (" ^ string_of_list zs ^ ")"
   | CallDir (Id.L nm, ys, zs) -> "call-dir " ^ nm ^ "(" ^ string_of_list ys ^ ") (" ^ string_of_list zs ^ ")"
 and show_asm_t = function

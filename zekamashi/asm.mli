@@ -30,6 +30,7 @@ and exp =
   | IfGE of Id.t * id_or_imm * t * t (* for simm *)
   | IfFEq of Id.t * Id.t * t * t
   | IfFLE of Id.t * Id.t * t * t
+  | IfF0 of Id.t * t * t (* if x =. 0.0 then e1 else e2 *)
   (* closure address, integer arguments, and float arguments *)
   | CallCls of Id.t * Id.t list * Id.t list
   | CallDir of Id.l * Id.t list * Id.t list
