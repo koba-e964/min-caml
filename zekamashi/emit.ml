@@ -95,6 +95,9 @@ let load_imm imm reg =
       end
 
 type dest = Tail | NonTail of Id.t (* 末尾かどうかを表すデータ型 *)
+
+let is_imm_range x = 0 <= x && x <= 255
+
 let rec g oc = function (* 命令列のアセンブリ生成 *)
   | (dest, Ans (exp)) -> g' oc (dest, exp)
   | (dest, Let((x, t), exp, e)) -> g' oc (NonTail (x), exp); g oc (dest, e)
@@ -201,22 +204,34 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
 	 | _ -> assert false);
       emit_inst (Ret (rtmp, rlr));
   | (Tail, IfEq(x, y, e1, e2)) ->
-      emit_inst (Subl (reg_of_string x, ri_of_ri y, rtmp));
-      g'_tail_if oc e1 e2 "beq" NE
+      if y = C 0 then
+        g'_tail_if oc e1 e2 "beq" (reg_of_string x) NE
+      else begin
+        emit_inst (Subl (reg_of_string x, ri_of_ri y, rtmp));
+        g'_tail_if oc e1 e2 "beq" rtmp NE
+      end
   | (Tail, IfLE(x, C y, e1, e2)) ->
-      load_imm (Int32.of_int y) rtmp;
-      emit_inst (Cmp (CLE, reg_of_string x, ri_of_reg rtmp, rtmp));
-      g'_tail_if oc e1 e2 "ble" EQ
+      if is_imm_range y then
+        emit_inst (Cmp (CLE, reg_of_string x, RIImm y, rtmp))
+      else begin
+        load_imm (Int32.of_int y) rtmp;
+        emit_inst (Cmp (CLE, reg_of_string x, ri_of_reg rtmp, rtmp))
+      end;
+      g'_tail_if oc e1 e2 "ble" rtmp EQ
   | (Tail, IfLE(x, V y, e1, e2)) ->
       emit_inst (Cmp (CLE, reg_of_string x, ri_of_ri (V y), rtmp));
-      g'_tail_if oc e1 e2 "ble" EQ
+      g'_tail_if oc e1 e2 "ble" rtmp EQ
   | (Tail, IfGE(x, C y, e1, e2)) ->
-      load_imm (Int32.of_int y) rtmp;
-      emit_inst (Cmp (CLT, reg_of_string x, ri_of_reg rtmp, rtmp));
-      g'_tail_if oc e1 e2 "bge" NE
+      if is_imm_range y then
+        emit_inst (Cmp (CLT, reg_of_string x, RIImm y, rtmp))
+      else begin
+        load_imm (Int32.of_int y) rtmp;
+        emit_inst (Cmp (CLT, reg_of_string x, ri_of_reg rtmp, rtmp))
+      end;
+      g'_tail_if oc e1 e2 "bge" rtmp NE
   | (Tail, IfGE(x, V y, e1, e2)) ->
       emit_inst (Cmp (CLT, reg_of_string x, ri_of_ri (V y), rtmp));
-      g'_tail_if oc e1 e2 "bge" NE
+      g'_tail_if oc e1 e2 "bge" rtmp NE
   | (Tail, IfFEq(x, y, e1, e2)) ->
       emit_inst (Cmps (CEQ, freg_of_string x, freg_of_string y, frtmp));
       g'_tail_if_float oc e1 e2 "beq" EQ
@@ -224,22 +239,34 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       emit_inst (Cmps (CLE, freg_of_string x, freg_of_string y, frtmp));
       g'_tail_if_float oc e1 e2 "ble" EQ
   | (NonTail(z), IfEq(x, y, e1, e2)) ->
-      emit_inst (Subl (reg_of_string x, ri_of_ri y, rtmp));
-      g'_non_tail_if oc (NonTail(z)) e1 e2 "beq" NE
+      if y = C 0 then
+        g'_non_tail_if oc (NonTail z) e1 e2 "beq" (reg_of_string x) NE
+      else begin
+        emit_inst (Subl (reg_of_string x, ri_of_ri y, rtmp));
+        g'_non_tail_if oc (NonTail(z)) e1 e2 "beq" rtmp NE
+      end
   | (NonTail(z), IfLE(x, C y, e1, e2)) ->
-      load_imm (Int32.of_int y) rtmp;
-      emit_inst (Cmp (CLE, reg_of_string x, ri_of_reg rtmp, rtmp));
-      g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" EQ
+      if is_imm_range y then
+        emit_inst (Cmp (CLE, reg_of_string x, RIImm y, rtmp))
+      else begin
+        load_imm (Int32.of_int y) rtmp;
+        emit_inst (Cmp (CLE, reg_of_string x, ri_of_reg rtmp, rtmp))
+      end;
+      g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" rtmp EQ
   | (NonTail(z), IfLE(x, V y, e1, e2)) ->
       emit_inst (Cmp (CLE, reg_of_string x, ri_of_ri (V y), rtmp));
-      g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" EQ
+      g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" rtmp EQ
   | (NonTail(z), IfGE(x, C y, e1, e2)) ->
-      load_imm (Int32.of_int y) rtmp;
-      emit_inst (Cmp (CLT, reg_of_string x, ri_of_reg rtmp, rtmp));
-      g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" NE
+      if is_imm_range y then
+        emit_inst (Cmp (CLT, reg_of_string x, RIImm y, rtmp))
+      else begin
+        load_imm (Int32.of_int y) rtmp;
+        emit_inst (Cmp (CLT, reg_of_string x, ri_of_reg rtmp, rtmp))
+      end;
+      g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" rtmp NE
   | (NonTail(z), IfGE(x, V y, e1, e2)) ->
       emit_inst (Cmp (CLT, reg_of_string x, ri_of_ri (V y), rtmp));
-      g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" NE
+      g'_non_tail_if oc (NonTail(z)) e1 e2 "ble" rtmp NE
   | (NonTail(z), IfFEq(x, y, e1, e2)) ->
       emit_inst (Cmps (CEQ, freg_of_string x, freg_of_string y, frtmp));
       g'_non_tail_if_float oc (NonTail(z)) e1 e2 "nt_fbeq" EQ
@@ -282,18 +309,18 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
            emit_inst (Inst.fmov (FReg 0) (freg_of_string a))
          else if not (List.mem a allregs || List.mem a allfregs) then
            failwith ("neither regs nor fregs: " ^ a))
-and g'_tail_if oc e1 e2 b bcond = 
+and g'_tail_if oc e1 e2 b rcond bcond = 
   let b_else = Id.genid (b ^ "_else") in
-    emit_inst (BC (bcond, rtmp, b_else));
+    emit_inst (BC (bcond, rcond, b_else));
     let stackset_back = !stackset in
       g oc (Tail, e1);
       emit_inst (Label b_else);
       stackset := stackset_back;
       g oc (Tail, e2)
-and g'_non_tail_if oc dest e1 e2 b bcond = 
+and g'_non_tail_if oc dest e1 e2 b rcond bcond = 
   let b_else = Id.genid (b ^ "_else") in
   let b_cont = Id.genid (b ^ "_cont") in
-    emit_inst (BC (bcond, rtmp, b_else));
+    emit_inst (BC (bcond, rcond, b_else));
     let stackset_back = !stackset in
       g oc (dest, e1);
       let stackset1 = !stackset in
