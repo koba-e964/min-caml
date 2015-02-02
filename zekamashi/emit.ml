@@ -107,6 +107,9 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail x, Li i) ->
       let r = reg_of_string x in
       load_imm (Int32.of_int i) r
+  | (NonTail x, FLi fl)  when fl = 0.0 ->
+     emit_inst (FOp (FOpMul, FReg 31, FReg 31, freg_of_string x));
+     emit_inst (Inst.Comment "0.0 = 0.0 * 0.0")
   | (NonTail x, FLi fl) ->
      let bits = Int32.bits_of_float fl in
      load_imm bits rtmp;
