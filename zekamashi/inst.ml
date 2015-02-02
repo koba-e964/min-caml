@@ -54,6 +54,7 @@ type zek_inst =
   | Cmps of cmp * freg * freg * freg
   | FOp of fop * freg * freg * freg
   | Invs of freg * freg
+  | Sqrts of freg * freg
   | Itofs of reg * freg
   | Label of label
   | Mov of reg * label (* macro, expanded to 2 instructions *)
@@ -120,6 +121,7 @@ let show_zek_inst = function
   | FOp (FOpSub, a, b, c) -> "\tSUBS\t" ^ show_freg a ^ ", " ^ show_freg b ^ ", " ^ show_freg c
   | FOp (FOpMul, a, b, c) -> "\tMULS\t" ^ show_freg a ^ ", " ^ show_freg b ^ ", " ^ show_freg c
   | Invs (a, b) -> "\tINVS\t" ^ show_freg a ^ ", " ^ show_freg b
+  | Sqrts (a, b) -> "\tSQRTS\t" ^ show_freg a ^ ", " ^ show_freg b
   | Itofs (ra, fb) -> "\tITOFS\t" ^ show_reg ra ^ ", " ^ show_freg fb
   | Label l -> l ^ ":"
   | Mov (a, b) -> "\tMOV\t" ^ show_reg a ^ ", " ^ b

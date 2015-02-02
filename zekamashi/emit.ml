@@ -157,6 +157,8 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(x), FDiv(y, z)) ->
         emit_inst (Invs (freg_of_string z, frtmp));
         emit_inst (FOp (FOpMul, freg_of_string y, frtmp, freg_of_string x))
+  | (NonTail x, Native ("sqrt", [y])) ->
+        emit_inst (Sqrts (freg_of_string y, freg_of_string x))
   | (NonTail(x), Lfd(y, V(z))) ->
       emit_inst (Addl (reg_of_string y, ri_of_reg (reg_of_string z), rtmp));
       emit_inst (Lds (freg_of_string x, 0, rtmp))

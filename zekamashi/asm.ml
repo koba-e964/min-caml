@@ -38,6 +38,7 @@ and exp = (* 一つ一つの命令に対応する式 *)
   | CallDir of Id.l * Id.t list * Id.t list
   | Save of Id.t * Id.t (* レジスタ変数の値をスタック変数へ保存 *)
   | Restore of Id.t (* スタック変数から値を復元 *)
+  | Native of string * Id.t list
 type fundef =
     { name : Id.l; args : Id.t list; fargs : Id.t list; body : t; ret : Type.t }
 type vardef =
@@ -82,6 +83,8 @@ let fv_id_or_imm = function V (x) -> [x] | _ -> []
 let rec fv_exp = function
   | Nop | Li (_) | FLi (_) | SetL (_) | Comment (_) | Restore (_) -> []
   | Mr (x) | Neg (x) | FMr (x) | FNeg (x) | Save (x, _) -> [x]
+  | Native ("sqrt", [x]) -> [x]
+  | Native _ -> assert false
   | Add (x, y') | Sub (x, y') | Arith (_, x, y') | Slw (x, y') | Lfd (x, y') | Lwz (x, y') -> 
       x :: fv_id_or_imm y'
   | FAdd (x, y) | FSub (x, y) | FMul (x, y) | FDiv (x, y) ->
@@ -159,6 +162,8 @@ let rec show_exp = function
     "if " ^ x ^ " =.0.0 then\n" ^ show_asm_t e1 ^ "\nelse\n" ^ show_asm_t e2 ^ "\nend"
   | CallCls (nm, ys, zs) -> "call-cls " ^ nm ^ "(" ^ string_of_list ys ^ ") (" ^ string_of_list zs ^ ")"
   | CallDir (Id.L nm, ys, zs) -> "call-dir " ^ nm ^ "(" ^ string_of_list ys ^ ") (" ^ string_of_list zs ^ ")"
+  | Native ("sqrt", [x]) -> "sqrt " ^ x
+  | Native _ -> assert false
 and show_asm_t = function
   | Ans e -> show_exp e
   | Let ((nm, ty), e1, e2) ->
