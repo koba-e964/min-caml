@@ -47,6 +47,7 @@ type zek_inst =
   | Subl of reg * reg_or_imm * reg
   | FBC of cond * freg * label
   | Cmp of cmp * reg * reg_or_imm * reg
+  | And of reg * reg_or_imm * reg
   | Sll of reg * reg_or_imm * reg
   | Srl of reg * reg_or_imm * reg
   | Lds of freg * disp16 * reg
@@ -112,6 +113,7 @@ let show_zek_inst = function
   | Subl (a, b, c) -> "\tSUBL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
   | FBC (c, a, d) -> "\tF" ^ show_cond c ^ "\t" ^ show_freg a ^ ", " ^ d
   | Cmp (op, a, b, c) -> "\tCMP" ^ show_cmp op ^ "\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
+  | And (a, b, c) -> "\tAND\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
   | Sll (a, b, c) -> "\tSLL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
   | Srl (a, b, c) -> "\tSRL\t" ^ show_reg a ^ ", " ^ show_ri b ^ ", " ^ show_reg c
   | Lds (a, d, b) -> "\tLDS\t" ^ show_freg a ^ ", " ^ string_of_int d ^ "(" ^ show_reg b ^ ")"

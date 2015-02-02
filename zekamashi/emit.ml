@@ -159,6 +159,15 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
         emit_inst (FOp (FOpMul, freg_of_string y, frtmp, freg_of_string x))
   | (NonTail x, Native ("sqrt", [y])) ->
         emit_inst (Sqrts (freg_of_string y, freg_of_string x))
+  | (NonTail _, Native ("print_char", [y])) ->
+        let mcpc = Id.genid "mcpc" in
+        emit_inst (Ldah (rtmp, 16, Reg 31));
+        emit_inst (Label mcpc);
+        emit_inst (Ldl (rtmp2, 2, rtmp));
+        emit_inst (And (rtmp2, RIImm 1, rtmp2));
+        emit_inst (BC (Inst.EQ, rtmp2, mcpc));
+        emit_inst (And (reg_of_string y, RIImm 255, rtmp2));
+        emit_inst (Stl (rtmp2, 3, rtmp))
   | (NonTail(x), Lfd(y, V(z))) ->
       emit_inst (Addl (reg_of_string y, ri_of_reg (reg_of_string z), rtmp));
       emit_inst (Lds (freg_of_string x, 0, rtmp))
@@ -188,14 +197,14 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       assert (List.mem x allfregs);
       emit_inst (Lds (freg_of_string x, offset y, rsp))
   (* 末尾だったら計算結果を第一レジスタにセット *)
-  | (Tail, (Nop | Stw _ | Stfd _ | Asm.Comment _ | Save _ as exp)) ->
+  | (Tail, (Nop | Stw _ | Stfd _ | Asm.Comment _ | Save _ | Native ("print_char", _) as exp)) ->
       g' oc (NonTail(Id.gentmp Type.Unit), exp);
       emit_inst (Ret (rtmp, rlr));
   | (Tail, (Li _ | SetL _ | Mr _ | Neg _ | Add _ | Sub _ | Arith _ | Slw _ |
             Lwz _ as exp)) -> 
       g' oc (NonTail(regs.(0)), exp);
       emit_inst (Ret (rtmp, rlr))
-  | (Tail, (FLi _ | FMr _ | FNeg _ | FAdd _ | FSub _ | FMul _ | FDiv _ |
+  | (Tail, (FLi _ | FMr _ | FNeg _ | FAdd _ | FSub _ | FMul _ | FDiv _ | Native ("sqrt", _) |
             Lfd _ as exp)) ->
       g' oc (NonTail(fregs.(0)), exp);
       emit_inst (Ret (rtmp, rlr))

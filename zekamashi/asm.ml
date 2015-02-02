@@ -83,8 +83,7 @@ let fv_id_or_imm = function V (x) -> [x] | _ -> []
 let rec fv_exp = function
   | Nop | Li (_) | FLi (_) | SetL (_) | Comment (_) | Restore (_) -> []
   | Mr (x) | Neg (x) | FMr (x) | FNeg (x) | Save (x, _) -> [x]
-  | Native ("sqrt", [x]) -> [x]
-  | Native _ -> assert false
+  | Native (_, x) -> x
   | Add (x, y') | Sub (x, y') | Arith (_, x, y') | Slw (x, y') | Lfd (x, y') | Lwz (x, y') -> 
       x :: fv_id_or_imm y'
   | FAdd (x, y) | FSub (x, y) | FMul (x, y) | FDiv (x, y) ->
@@ -163,6 +162,7 @@ let rec show_exp = function
   | CallCls (nm, ys, zs) -> "call-cls " ^ nm ^ "(" ^ string_of_list ys ^ ") (" ^ string_of_list zs ^ ")"
   | CallDir (Id.L nm, ys, zs) -> "call-dir " ^ nm ^ "(" ^ string_of_list ys ^ ") (" ^ string_of_list zs ^ ")"
   | Native ("sqrt", [x]) -> "sqrt " ^ x
+  | Native ("print_char", [x]) -> "print_char " ^ x
   | Native _ -> assert false
 and show_asm_t = function
   | Ans e -> show_exp e
