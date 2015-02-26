@@ -422,6 +422,6 @@ let f oc asmlib (Prog(vardefs, fundefs, e)) =
   List.iter (g_vardef_body oc) vardefs;
   emit_inst (ExtFile asmlib);
   emit_inst (Label "min_caml_main_end");
-  emit_inst (mov (Reg 0) (Reg 0));
+  emit_inst (Br (Reg 31, "min_caml_main_end"));
   emit oc insts;
 
