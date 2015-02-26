@@ -153,4 +153,10 @@ lmccfa3:
 	RET $28, ($29)
 min_caml_print_newline:
 	RET $28, ($29)
+min_caml_bits_of_float:
+	FTOIS $f0, $0
+	RET $28, ($29)	
+min_caml_float_of_bits:
+	ITOFS $0, $f0
+	RET $28, ($29)
 
