@@ -11,9 +11,7 @@ let save x =
 let savef x = 
   stackset := S.add x !stackset;
   if not (List.mem x !stackmap) then
-    (let pad = 
-       if List.length !stackmap mod 2 = 0 then [] else [Id.gentmp Type.Int] in
-       stackmap := !stackmap @ pad @ [x; x])
+    stackmap := !stackmap @ [x]
 let locate x = 
   let rec loc = function 
     | [] -> []
@@ -27,7 +25,6 @@ let insts = Queue.create ()
 
 let emit_inst (inst : zek_inst) = Queue.add inst insts
 let emit_insts (inst : zek_inst list) = List.map (fun x -> Queue.add x insts) inst
-
 
 let reg r = 
   if is_reg r
@@ -44,6 +41,7 @@ let freg_of_string r =
   then FReg (int_of_string (String.sub r 2 (String.length r - 2)))
   else failwith ("invalid regname" ^ r)
 
+
 let rtmp2 = Reg 25 (* TODO ad-hoc temporary register for JMP instruction, since operands must differ *)
 let rcl = Reg 26
 let rhp = Reg 27
@@ -51,6 +49,31 @@ let rtmp = Reg 28
 let rlr = Reg 29
 let rsp = Reg 30
 let frtmp = FReg 30
+
+let stackplace = ref 0 (* Current place of stack *)
+
+let set_sp v = let cur = !stackplace in
+  if cur <> v then begin
+    emit_inst (Lda (rsp, v - cur, rsp));
+    stackplace := v
+  end
+
+let set_sp_quiet v = stackplace := v
+
+
+let load_sp r v = let cur = !stackplace in
+  emit_inst (Ldl (r, v - cur, rsp))
+let store_sp r v = let cur = !stackplace in
+  emit_inst (Stl (r, v - cur, rsp))
+let loadf_sp r v = let cur = !stackplace in
+  emit_inst (Lds (r, v - cur, rsp))
+let storef_sp r v = let cur = !stackplace in
+  emit_inst (Sts (r, v - cur, rsp))
+
+(* emit return instructions *)
+let return () =
+  set_sp 0;
+  emit_inst (Ret (rtmp, rlr))
 
 let ri_of_ri r = match r with
   | V x ->
@@ -187,37 +210,41 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(_), Save(x, y))
       when List.mem x allregs && not (S.mem y !stackset) ->
       save y;
-      emit_inst (Stl (reg_of_string x, offset y, rsp))
+      store_sp (reg_of_string x) (offset y)
+      (* emit_inst (Stl (reg_of_string x, offset y, rsp)) *)
 
   | (NonTail(_), Save(x, y)) 
       when List.mem x allfregs && not (S.mem y !stackset) ->
       savef y;
-        emit_inst (Sts (freg_of_string x, offset y, rsp))
+      storef_sp (freg_of_string x) (offset y)
+      (* emit_inst (Sts (freg_of_string x, offset y, rsp)) *)
   | (NonTail(_), Save(x, y)) -> assert (S.mem y !stackset); ()
   (* 復帰の仮想命令の実装 *)
   | (NonTail(x), Restore(y)) when List.mem x allregs ->
-      emit_inst (Ldl (reg_of_string x, offset y, rsp))
+      load_sp (reg_of_string x) (offset y)
+      (* emit_inst (Ldl (reg_of_string x, offset y, rsp)) *)
   | (NonTail(x), Restore(y)) ->
       assert (List.mem x allfregs);
-      emit_inst (Lds (freg_of_string x, offset y, rsp))
+      loadf_sp (freg_of_string x) (offset y)
+      (* emit_inst (Lds (freg_of_string x, offset y, rsp)) *)
   (* 末尾だったら計算結果を第一レジスタにセット *)
   | (Tail, (Nop | Stw _ | Stfd _ | Asm.Comment _ | Save _ | Native ("print_char", _) as exp)) ->
       g' oc (NonTail(Id.gentmp Type.Unit), exp);
-      emit_inst (Ret (rtmp, rlr));
+      return ();
   | (Tail, (Li _ | SetL _ | Mr _ | Neg _ | Add _ | Sub _ | Arith _ | Slw _ |
             Lwz _ as exp)) -> 
       g' oc (NonTail(regs.(0)), exp);
-      emit_inst (Ret (rtmp, rlr))
+      return ()
   | (Tail, (FLi _ | FMr _ | FNeg _ | FAdd _ | FSub _ | FMul _ | FDiv _ | Native ("sqrt", _) |
             Lfd _ as exp)) ->
       g' oc (NonTail(fregs.(0)), exp);
-      emit_inst (Ret (rtmp, rlr))
+      return ()
   | (Tail, (Restore(x) as exp)) ->
       (match locate x with
 	 | [i] -> g' oc (NonTail(regs.(0)), exp)
 	 | [i; j] when (i + 1 = j) -> g' oc (NonTail(fregs.(0)), exp)
 	 | _ -> assert false);
-      emit_inst (Ret (rtmp, rlr));
+      return ();
   | (Tail, IfEq(x, y, e1, e2)) ->
       if y = C 0 then
         g'_tail_if oc e1 e2 "beq" (reg_of_string x) NE
@@ -296,19 +323,24 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (Tail, CallCls(x, ys, zs)) -> (* 末尾呼び出し *)
       g'_args oc [(x, reg_cl)] ys zs;
       emit_inst (Ldl (rtmp, 0, reg_of_string reg_cl));
+      set_sp 0;
       emit_inst (Jmp (rtmp2, rtmp))
   | (Tail, CallDir(Id.L(x), ys, zs)) -> (* 末尾呼び出し *)
       g'_args oc [] ys zs;
+      set_sp 0;
       emit_inst (Br (rtmp, x))
   | (NonTail(a), CallCls(x, ys, zs)) ->
       g'_args oc [(x, reg_cl)] ys zs;
       let ss = stacksize () in
-        emit_inst (Stl (rlr, ss - wordsize, rsp));
-        emit_inst (Addl (rsp, RIImm ss, rsp));
+        store_sp rlr (ss - wordsize);
+        (* emit_inst (Stl (rlr, ss - wordsize, rsp)); *)
+        set_sp ss;
+        (*  emit_inst (Addl (rsp, RIImm ss, rsp)); *)
         emit_inst (Ldl (rtmp, 0 * wordsize, rcl));
         emit_inst (Jsr (rlr, rtmp));
-        emit_inst (Subl (rsp, RIImm ss, rsp));
-        emit_inst (Ldl (rtmp, ss - wordsize, rsp));
+        (* emit_inst (Subl (rsp, RIImm ss, rsp)); *)
+        load_sp rlr (ss - wordsize);
+        (* emit_inst (Ldl (rtmp, ss - wordsize, rsp)); *)
 	(if List.mem a allregs && a <> regs.(0) then 
            emit_inst (Inst.mov (Reg 0) (reg_of_string a)) 
 	 else if List.mem a allfregs && a <> fregs.(0) then 
@@ -317,11 +349,14 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(a), CallDir(Id.L(x), ys, zs)) -> 
       g'_args oc [] ys zs;
       let ss = stacksize () in
-        emit_inst (Stl (rlr, ss - wordsize, rsp));
-        emit_inst (Addl (rsp, RIImm ss, rsp));
+        store_sp rlr (ss - wordsize);
+        (* emit_inst (Stl (rlr, ss - wordsize, rsp)); *)
+        set_sp ss;
+        (* emit_inst (Addl (rsp, RIImm ss, rsp)); *)
         emit_inst (Bsr (rlr, x));
-        emit_inst (Subl (rsp, RIImm ss, rsp));
-        emit_inst (Ldl (rlr, ss - wordsize, rsp));
+        (* emit_inst (Subl (rsp, RIImm ss, rsp)); *)
+        load_sp rlr (ss - wordsize);
+        (* emit_inst (Ldl (rlr, ss - wordsize, rsp)); *)
 	(if List.mem a allregs && a <> regs.(0) then
            emit_inst (Inst.mov (Reg 0) (reg_of_string a))
 	 else if List.mem a allfregs && a <> fregs.(0) then
@@ -332,21 +367,31 @@ and g'_tail_if oc e1 e2 b rcond bcond =
   let b_else = Id.genid (b ^ "_else") in
     emit_inst (BC (bcond, rcond, b_else));
     let stackset_back = !stackset in
+      let curst = !stackplace in
+      set_sp 0;
       g oc (Tail, e1);
       emit_inst (Label b_else);
       stackset := stackset_back;
+      set_sp_quiet curst;
+      set_sp 0;
       g oc (Tail, e2)
 and g'_non_tail_if oc dest e1 e2 b rcond bcond = 
   let b_else = Id.genid (b ^ "_else") in
   let b_cont = Id.genid (b ^ "_cont") in
     emit_inst (BC (bcond, rcond, b_else));
     let stackset_back = !stackset in
+      let curst = !stackplace in
+      set_sp 0;
       g oc (dest, e1);
+      set_sp 0;
       let stackset1 = !stackset in
         emit_inst (Br (rtmp, b_cont));
         emit_inst (Label b_else);
 	stackset := stackset_back;
+        set_sp_quiet curst;
+        set_sp 0;
 	g oc (dest, e2);
+        set_sp 0;
         emit_inst (Label b_cont);
 	let stackset2 = !stackset in
 	  stackset := S.inter stackset1 stackset2
@@ -354,21 +399,31 @@ and g'_tail_if_float oc e1 e2 b frcond bcond =
   let b_else = Id.genid (b ^ "_else") in
     emit_inst (FBC (bcond, frcond, b_else));
     let stackset_back = !stackset in
+      let curst = !stackplace in
+      set_sp 0;
       g oc (Tail, e1);
       emit_inst (Label b_else);
       stackset := stackset_back;
+      set_sp_quiet curst;
+      set_sp 0;
       g oc (Tail, e2)
 and g'_non_tail_if_float oc dest e1 e2 b frcond bcond = 
   let b_else = Id.genid (b ^ "_else") in
   let b_cont = Id.genid (b ^ "_cont") in
     emit_inst (FBC (bcond, frcond, b_else));
     let stackset_back = !stackset in
+      let curst = !stackplace in
+      set_sp 0;
       g oc (dest, e1);
+      set_sp 0;
       let stackset1 = !stackset in
         emit_inst (Br (rtmp, b_cont));
         emit_inst (Label b_else);
 	stackset := stackset_back;
+        set_sp_quiet curst;
+        set_sp 0;
 	g oc (dest, e2);
+        set_sp 0;
         emit_inst (Label b_cont);
 	let stackset2 = !stackset in
 	  stackset := S.inter stackset1 stackset2
@@ -393,6 +448,7 @@ let h oc { name = Id.L(x); args = _; fargs = _; body = e; ret = _ } =
   emit_inst (Label x);
   stackset := S.empty;
   stackmap := [];
+  set_sp 0;
   g oc (Tail, e)
 
 let g_vardef_body oc { vname = (Id.L x, ty); vbody = e } =
@@ -403,7 +459,7 @@ let g_vardef_body oc { vname = (Id.L x, ty); vbody = e } =
   g oc (NonTail "%R0", e);
   emit_inst (Inst.Mov (rtmp, gl_name));
   emit_inst (Stl (Reg 0, 0, rtmp));
-  emit_inst (Ret (rtmp, rlr));
+  return ();
   emit_inst (Label gl_name);
   emit_inst (Lda (Reg 31, 0, Reg 31))
 
