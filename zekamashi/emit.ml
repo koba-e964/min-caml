@@ -368,12 +368,10 @@ and g'_tail_if oc e1 e2 b rcond bcond =
     emit_inst (BC (bcond, rcond, b_else));
     let stackset_back = !stackset in
       let curst = !stackplace in
-      set_sp 0;
       g oc (Tail, e1);
       emit_inst (Label b_else);
       stackset := stackset_back;
       set_sp_quiet curst;
-      set_sp 0;
       g oc (Tail, e2)
 and g'_non_tail_if oc dest e1 e2 b rcond bcond = 
   let b_else = Id.genid (b ^ "_else") in
@@ -381,7 +379,6 @@ and g'_non_tail_if oc dest e1 e2 b rcond bcond =
     emit_inst (BC (bcond, rcond, b_else));
     let stackset_back = !stackset in
       let curst = !stackplace in
-      set_sp 0;
       g oc (dest, e1);
       set_sp 0;
       let stackset1 = !stackset in
@@ -389,7 +386,6 @@ and g'_non_tail_if oc dest e1 e2 b rcond bcond =
         emit_inst (Label b_else);
 	stackset := stackset_back;
         set_sp_quiet curst;
-        set_sp 0;
 	g oc (dest, e2);
         set_sp 0;
         emit_inst (Label b_cont);
@@ -400,12 +396,10 @@ and g'_tail_if_float oc e1 e2 b frcond bcond =
     emit_inst (FBC (bcond, frcond, b_else));
     let stackset_back = !stackset in
       let curst = !stackplace in
-      set_sp 0;
       g oc (Tail, e1);
       emit_inst (Label b_else);
       stackset := stackset_back;
       set_sp_quiet curst;
-      set_sp 0;
       g oc (Tail, e2)
 and g'_non_tail_if_float oc dest e1 e2 b frcond bcond = 
   let b_else = Id.genid (b ^ "_else") in
@@ -413,7 +407,6 @@ and g'_non_tail_if_float oc dest e1 e2 b frcond bcond =
     emit_inst (FBC (bcond, frcond, b_else));
     let stackset_back = !stackset in
       let curst = !stackplace in
-      set_sp 0;
       g oc (dest, e1);
       set_sp 0;
       let stackset1 = !stackset in
@@ -421,7 +414,6 @@ and g'_non_tail_if_float oc dest e1 e2 b frcond bcond =
         emit_inst (Label b_else);
 	stackset := stackset_back;
         set_sp_quiet curst;
-        set_sp 0;
 	g oc (dest, e2);
         set_sp 0;
         emit_inst (Label b_cont);
