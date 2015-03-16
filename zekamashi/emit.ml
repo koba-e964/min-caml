@@ -26,6 +26,7 @@ let stacksize () = align ((List.length !stackmap + 1) * wordsize)
 let insts = Queue.create ()
 
 let emit_inst (inst : zek_inst) = Queue.add inst insts
+let emit_insts (inst : zek_inst list) = List.map (fun x -> Queue.add x insts) inst
 
 
 let reg r = 
@@ -408,8 +409,8 @@ let g_vardef_body oc { vname = (Id.L x, ty); vbody = e } =
 
 let f oc asmlib (Prog(vardefs, fundefs, e)) =
   Format.eprintf "generating assembly...@.";
-  emit_inst (li 0x3000 rsp);
-  emit_inst (li 0x7000 rhp);
+  emit_insts (li32 !reg_sp_start rsp);
+  emit_insts (li32 !reg_hp_start rhp);
   emit_inst (Inst.Comment "main program start");
   stackset := S.empty;
   stackmap := [];

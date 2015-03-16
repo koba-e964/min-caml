@@ -1,3 +1,5 @@
+open Int32
+
 (* PowerPC assembly with a few virtual instructions *)
 
 type id_or_imm = V of Id.t | C of int
@@ -183,5 +185,11 @@ let show_prog (Prog (vardefs, fundefs, expr)) =
   ^ List.fold_left (fun x y -> x ^ show_vardef y ^ "\n") "" vardefs
   ^ show_asm_t expr
 
+
+(* The starting position of stack pointer. *)
+let reg_sp_start = ref (Int32.of_int 0x10000)
+
+(* The starting position of heap pointer. *)
+let reg_hp_start = ref (Int32.of_int 0x20000)
 
 

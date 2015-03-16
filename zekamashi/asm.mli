@@ -1,3 +1,5 @@
+open Int32
+
 type id_or_imm = V of Id.t | C of int
 type t = 
   | Ans of exp
@@ -66,4 +68,11 @@ val align : int -> int
 
 val show_id_or_imm : id_or_imm -> string
 val show_prog : prog -> string
+
+(* The starting position of stack pointer. *)
+val reg_sp_start : int32 ref
+
+(* The starting position of heap pointer. *)
+val reg_hp_start : int32 ref
+
 
