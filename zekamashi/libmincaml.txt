@@ -76,18 +76,6 @@ min_caml_read_float:
 	ITOFS $0, $f0
 	RET $28, ($29)
 
-min_caml_int_of_float:
-min_caml_truncate:
-	CVTSL/C $f0, $f0
-	FTOIS $f0, $0
-	RET $28, ($29)
-
-min_caml_float_of_int:
-	LDA $23, 0($0)
-	ITOFS $23, $f19
-	CVTLS $f19, $f0
-	RET $28, ($29)
-
 min_caml_floor:
 	CMPSLE $f0, $f31, $f1
 	FBNE $f1, mcf_neg

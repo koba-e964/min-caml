@@ -57,6 +57,9 @@ type zek_inst =
   | Invs of freg * freg
   | Sqrts of freg * freg
   | Itofs of reg * freg
+  | Ftois of freg * reg
+  | CvtslC of freg * freg
+  | Cvtls of freg * freg
   | Label of label
   | Mov of reg * label (* macro, expanded to 2 instructions *)
   | Comment of string
@@ -125,6 +128,9 @@ let show_zek_inst = function
   | Invs (a, b) -> "\tINVS\t" ^ show_freg a ^ ", " ^ show_freg b
   | Sqrts (a, b) -> "\tSQRTS\t" ^ show_freg a ^ ", " ^ show_freg b
   | Itofs (ra, fb) -> "\tITOFS\t" ^ show_reg ra ^ ", " ^ show_freg fb
+  | Ftois (fa, rb) -> "\tFTOIS\t" ^ show_freg fa ^ ", " ^ show_reg rb
+  | CvtslC (fa, fb) -> "\tCVTSL/C\t" ^ show_freg fa ^ ", " ^ show_freg fb
+  | Cvtls (fa, fb) -> "\tCVTLS\t" ^ show_freg fa ^ ", " ^ show_freg fb
   | Label l -> l ^ ":"
   | Mov (a, b) -> "\tMOV\t" ^ show_reg a ^ ", " ^ b
   | Comment s -> "    # " ^ s ^ "\n"
