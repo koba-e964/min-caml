@@ -165,6 +165,8 @@ let rec show_exp = function
   | CallDir (Id.L nm, ys, zs) -> "call-dir " ^ nm ^ "(" ^ string_of_list ys ^ ") (" ^ string_of_list zs ^ ")"
   | Native ("sqrt", [x]) -> "sqrt " ^ x
   | Native ("print_char", [x]) -> "print_char " ^ x
+  | Native ("truncate", [x]) -> "truncate " ^ x
+  | Native ("float_of_int", [x]) -> "float_of_int " ^ x
   | Native _ -> assert false
 and show_asm_t = function
   | Ans e -> show_exp e
