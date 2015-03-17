@@ -32,18 +32,6 @@ mcpi3:
 	STL $4, 3($1)
 	LDA $0, 0($2)
 	RET $28, ($29)
-min_caml_print_char:
-# while ((*0x100002 & 1) == 0) {}
-#   *0x100003 = data & 255;
-	LDAH $1, 16($31)
-	LDA $2, 0($0)
-mcpc:
-	LDL $3, 2($1)
-	AND $3, 1, $4
-	BEQ $4, mcpc
-	AND $0, 255, $4
-	STL $4, 3($1)
-	RET $28, ($29)
 
 min_caml_read_int:
 # while (*0x100000 & 1 == 0) {}
@@ -117,10 +105,6 @@ mcf_neg: #negative
 	ITOFS $15, $f17
 	SUBS $f1, $f17, $f0
 mcf_neg_exact:
-	RET $28, ($29)
-
-min_caml_sqrt:
-	SQRTS $f0, $f0
 	RET $28, ($29)
 
 min_caml_create_array: # int -> 'a -> 'a array
